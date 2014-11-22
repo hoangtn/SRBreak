@@ -1,0 +1,247 @@
+\name{detectBreakPointFromRD}
+\alias{detectBreakPointFromRD}
+\title{
+  Use read depth to detect CNVRs
+}
+\description{
+%%  ~~ A concise (1-5 lines) description of what the function does. ~~
+}
+\usage{
+detectBreakPointFromRD(polymorphicObject, windows = 500, genes, quantileThreshold = 0.85, countThreshold = 5, sigMaTemp = windows/3, upperCNThreshold = 0.4, lowerCNThreshold = -0.4, detectAllRegion = FALSE, NTimes = 50, testType = c("Count", "SD", "positiveCount", "negativeCount"))
+}
+%- maybe also 'usage' for other objects documented here.
+\arguments{
+  \item{polymorphicObject}{
+%%     ~~Describe \code{polymorphicObject} here~~
+}
+  \item{windows}{
+%%     ~~Describe \code{windows} here~~
+}
+  \item{genes}{
+%%     ~~Describe \code{genes} here~~
+}
+  \item{quantileThreshold}{
+%%     ~~Describe \code{quantileThreshold} here~~
+}
+  \item{countThreshold}{
+%%     ~~Describe \code{countThreshold} here~~
+}
+  \item{sigMaTemp}{
+%%     ~~Describe \code{sigMaTemp} here~~
+}
+  \item{upperCNThreshold}{
+%%     ~~Describe \code{upperCNThreshold} here~~
+}
+  \item{lowerCNThreshold}{
+%%     ~~Describe \code{lowerCNThreshold} here~~
+}
+  \item{detectAllRegion}{
+%%     ~~Describe \code{detectAllRegion} here~~
+}
+  \item{NTimes}{
+%%     ~~Describe \code{NTimes} here~~
+}
+  \item{testType}{
+%%     ~~Describe \code{testType} here~~
+}
+}
+\details{
+%%  ~~ If necessary, more details than the description above ~~
+}
+\value{
+%%  ~Describe the value returned
+%%  If it is a LIST, use
+%%  \item{comp1 }{Description of 'comp1'}
+%%  \item{comp2 }{Description of 'comp2'}
+%% ...
+}
+\references{
+%% ~put references to the literature/web site here ~
+}
+\author{
+%%  ~~who you are~~
+}
+\note{
+%%  ~~further notes~~
+}
+
+%% ~Make other sections like Warning with \section{Warning }{....} ~
+
+\seealso{
+%% ~~objects to See Also as \code{\link{help}}, ~~~
+}
+\examples{
+##---- Should be DIRECTLY executable !! ----
+##-- ==>  Define data, use random,
+##--	or do  help(data=index)  for the standard data sets.
+
+## The function is currently defined as
+function (polymorphicObject, windows = 500, genes, quantileThreshold = 0.85, 
+    countThreshold = 5, sigMaTemp = windows/3, upperCNThreshold = 0.4, 
+    lowerCNThreshold = -0.4, detectAllRegion = FALSE, NTimes = 50, 
+    testType = c("Count", "SD", "positiveCount", "negativeCount")) 
+{
+    testType <- match.arg(testType)
+    print(testType)
+    listBreakPointOut <- NULL
+    polymorphicRegion <- polymorphicObject
+    subRegionMatrix <- polymorphicRegion$subRegionMatrix
+    subRegion <- polymorphicRegion$subRegion
+    if (testType == "Count") 
+        outSignal <- apply(subRegionMatrix, 2, function(x) length(x[(x >= 
+            upperCNThreshold) | (x <= lowerCNThreshold)]))
+    if (testType == "SD") 
+        outSignal <- apply(subRegionMatrix, 2, sd)
+    if (testType == "positiveCount") 
+        outSignal <- apply(subRegionMatrix, 2, function(x) length(x[x >= 
+            upperCNThreshold]))
+    if (testType == "negativeCount") 
+        outSignal <- apply(subRegionMatrix, 2, function(x) length(x[x <= 
+            lowerCNThreshold]))
+    mSD <- data.frame(polymorphicRegion$subRegion, outSignal)
+    mSD1 <- mSD[mSD[, 3] >= countThreshold, ]
+    if (testType == "SD") {
+        sdThreshold = quantile(mSD[, 3], quantileThreshold)
+        mSD1 <- mSD[mSD[, 3] >= sdThreshold, ]
+    }
+    message("mSD1: ", dim(mSD1))
+    if (dim(mSD1)[1] > 0) {
+        mSD2 <- IRanges::reduce(IRanges(mSD1[, 1], mSD1[, 2]))
+        geneMatrix <- matrix(genes, ncol = 2, byrow = TRUE)
+        if (detectAllRegion) {
+            geneMatrix <- data.frame(start(mSD2), end(mSD2))
+            geneMatrix <- geneMatrix[geneMatrix[, 2] - geneMatrix[, 
+                1] >= 1000, ]
+        }
+        print(geneMatrix)
+        for (kG in 1:dim(geneMatrix)[1]) {
+            message("kG: ", kG)
+            gene <- as.numeric(as.character(geneMatrix[kG, ]))
+            tempGene <- intersect(IRanges(gene[1], gene[2]), 
+                mSD2)
+            if (length(tempGene) > 0) {
+                tempGene <- tempGene[width(tempGene) == max(width(tempGene)), 
+                  ]
+                tempGene <- mSD2[subjectHits(findOverlaps(tempGene, 
+                  mSD2)), ]
+                print(tempGene)
+                mSD3 <- mSD1[(mSD1[, 1] >= start(tempGene)) & 
+                  (mSD1[, 2] <= end(tempGene)), ]
+                subRegionMatrix <- polymorphicRegion$subRegionMatrix
+                positionToPick <- as.numeric(rownames(mSD3))
+                subSD2 <- subRegionMatrix[, positionToPick]
+                if (is.null(dim(subSD2))) {
+                  classM <- mclust::Mclust(subSD2)$classification
+                }
+                else classM <- mclust::Mclust(subSD2, modelNames = "EII")$classification
+                classM1 <- cbind(classM, subSD2)
+                tempPos <- unique(c(mSD3[, 1], mSD3[, 2]))
+                tempPosForSub <- as.numeric(rownames(mSD3))
+                tempPosForSub <- c(tempPosForSub[1] - 1, tempPosForSub, 
+                  tempPosForSub[length(tempPosForSub)] + 1)
+                if (tempPosForSub[1] == 0) 
+                  tempPosForSub[1] <- 1
+                if (tempPosForSub[length(tempPosForSub) - 1] == 
+                  dim(subRegionMatrix)[2]) 
+                  tempPosForSub[length(tempPosForSub)] <- tempPosForSub[length(tempPosForSub) - 
+                    1]
+                message("dim(subRegionMatrix) ", dim(subRegionMatrix))
+                message("tempPosForSub ", tempPosForSub)
+                subER <- subRegionMatrix[, tempPosForSub]
+                subER[, 1] <- rep(0, dim(subER)[1])
+                subER[, dim(subER)[2]] <- rep(0, dim(subER)[1])
+                dataMatrix <- subER
+                outData <- NULL
+                for (ii in as.numeric(names(table(classM)))) {
+                  message("classM ii: ", ii)
+                  subER1 <- cbind(classM, dataMatrix[pmatch(names(classM), 
+                    rownames(dataMatrix)), ])
+                  tempData <- subER1[subER1[, 1] == ii, ]
+                  if (is.null(dim(tempData))) {
+                    tempData <- tempData[-1]
+                    tempData <- matrix(tempData, nrow = 1)
+                    rownames(tempData) <- names(classM[classM == 
+                      ii])
+                  }
+                  else tempData <- tempData[, -1]
+                  scorePos <- NULL
+                  tempScore <- NULL
+                  nSample <- dim(tempData)[1]
+                  tempTakeScore <- matrix(0, ncol = 2, nrow = nSample)
+                  for (k1 in 1:nSample) {
+                    tempData1 <- tempData[sample(1:nSample, NTimes * 
+                      nSample, replace = TRUE), ]
+                    if (!is.matrix(tempData1)) 
+                      tempData1 <- matrix(tempData1, ncol = ncol(tempData))
+                    for (kk in 1:length(tempPos)) {
+                      tempScore[kk] <- sum(abs(tempData1[, kk + 
+                        1] - tempData1[, kk]))
+                    }
+                    names(tempScore) <- tempPos
+                    for (kk in 1:length(tempPos)) {
+                      scorePos[kk] <- sum(tempScore * dnorm(x = tempPos, 
+                        mean = tempPos[kk], sd = sigMaTemp))
+                    }
+                    names(scorePos) <- tempPos
+                    tempOutScoreAA <- sort(scorePos, decreasing = TRUE)[1:2]
+                    tempOutScoreAA <- sort(as.numeric(names(tempOutScoreAA)))
+                    tempTakeScore[k1, ] <- tempOutScoreAA
+                  }
+                  aa <- rownames(tempData)
+                  breakSout <- apply(tempTakeScore, 2, median)
+                  tempTakeScoreL <- sort(tempTakeScore[, 1])
+                  tempTakeScoreR <- sort(tempTakeScore[, 2])
+                  breakSout[1] <- tempTakeScoreL[floor((length(tempTakeScore) + 
+                    1)/2)]
+                  breakSout[2] <- tempTakeScoreR[floor((length(tempTakeScore) + 
+                    1)/2)]
+                  leftPos <- as.numeric(rownames(mSD3[mSD3[, 
+                    1] == breakSout[1], ]))
+                  rightPos <- as.numeric(rownames(mSD3[mSD3[, 
+                    2] == breakSout[2], ]))
+                  groupSubMatrix <- subRegionMatrix[, leftPos:rightPos]
+                  if (is.matrix(groupSubMatrix)) {
+                    groupSubMatrix <- groupSubMatrix[pmatch(aa, 
+                      rownames(groupSubMatrix)), ]
+                  }
+                  else {
+                    groupSubMatrix <- groupSubMatrix[pmatch(aa, 
+                      names(groupSubMatrix))]
+                  }
+                  if (is.matrix(groupSubMatrix)) {
+                    scoreOfGroup <- apply(groupSubMatrix, 1, 
+                      mean)
+                  }
+                  else {
+                    scoreOfGroup <- mean(groupSubMatrix)
+                  }
+                  CNStatus <- ifelse(scoreOfGroup >= upperCNThreshold, 
+                    "DUP", ifelse(scoreOfGroup <= lowerCNThreshold, 
+                      "DEL", "NORMAL"))
+                  tempOut <- data.frame(aa, rep(breakSout[1], 
+                    length(aa)), rep(breakSout[2], length(aa)), 
+                    scoreOfGroup, CNStatus)
+                  outData <- rbind(outData, tempOut)
+                }
+            }
+            else outData <- data.frame(rownames(subRegionMatrix), 
+                rep(gene[1], dim(subRegionMatrix)[1]), rep(gene[2], 
+                  dim(subRegionMatrix)[1]), rep(0, dim(subRegionMatrix)[1]), 
+                rep("NORMAL", dim(subRegionMatrix)[1]))
+            colnames(outData) <- c("Name", "Start", "End", "Score", 
+                "Status")
+            testStatus <- sort(names(table(outData$Status)))
+            listBreakPointOut[[kG]] <- outData
+        }
+        if (!is.null(listBreakPointOut)) 
+            listBreakPointOut <- listBreakPointOut[!unlist(lapply(listBreakPointOut, 
+                is.null))]
+    }
+    else listBreakPointOut <- NULL
+    return(listBreakPointOut)
+  }
+}
+% Add one or more standard keywords, see file 'KEYWORDS' in the
+% R documentation directory.
+\keyword{ ~kwd1 }
+\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
