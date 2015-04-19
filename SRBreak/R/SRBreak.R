@@ -11,9 +11,7 @@ SRBreak <- function(readDepthWindow = 500,
                     pemMappingQuality = 0,  epsilonPairedOpen = NULL, thresholdOfIntersectionBetweenRDandPEM = 0.8,
 
                     splitreadMappingQuality = 0, epsilonSplitReadOpen = 2*readDepthWindow,
-                    sdSplitRead = 0.5, usingPairedEnds = TRUE,
-                    nIncreaseSampleSize = NULL ,
-                    inputRawReadCountMatrix = NULL){
+                    sdSplitRead = 0.5, usingPairedEnds = TRUE){
 
 
 #####################RD approach###########################################################
@@ -33,14 +31,10 @@ SRBreak <- function(readDepthWindow = 500,
 
 
     #############Use CNVrd2 to count read
-    if (!is.null(inputRawReadCountMatrix)){
-        rawcntMatrix0 <- inputRawReadCountMatrix
-    } else {
     rawcntMatrix0 <- CNVrd2::countReadInWindow(Object = objectCNVrd2,
                                        rawReadCount = TRUE, qualityThreshold = rdQualityMapping,
                                        correctGC = correctGC, byGCcontent= byGCcontent,
                                        useRSamtoolsToCount = useRSamtoolsToCount)
-}
     ############Correct mappability bias
 
     message("Correcting mappability bias")
@@ -50,32 +44,11 @@ SRBreak <- function(readDepthWindow = 500,
                                      mappabilityFile = mappabilityFile, 
                                      byMAPPABILITYcontent = byMAPPABILITYcontent  )
 
-
-    #######For single sample, this step is aimed to make a pseu-do matrix of multiple samples (not good)
-    
-    if (!is.null(nIncreaseSampleSize)){
-        tempNameSample <- rownames(rawcntMatrix01)
-
-        
-
-        newMatrixSample <- matrix(rep(rawcntMatrix01[1, ], nIncreaseSampleSize), ncol = length(rawcntMatrix01[1, ]), byrow = TRUE)
-        
-        rownames(newMatrixSample) <- paste(tempNameSample, 1:nIncreaseSampleSize, sep = "_")
-
-        rawcntMatrix01 <- newMatrixSample
-
-    }
-
-
-
-
-    ###############################################################
     ###Transform data to use CNVrd2
     rawcntMatrix <- t(apply(rawcntMatrix01, 1, function(x){
         temp <- x/median(x)
         temp <- temp - 1
         return(temp)}))
-    
 ##Segment read counts into different regions
     resultSegment <- CNVrd2::segmentSamples(Object = objectCNVrd2,
                                     stdCntMatrix = rawcntMatrix)
@@ -131,35 +104,17 @@ SRBreak <- function(readDepthWindow = 500,
     ###########Produce outputs
     breakpointFinal <- IRanges::unique(reportOutData[, c(5, 7, 8)])
     breakpointFinal <- breakpointFinal[breakpointFinal[, 1] != "NORMAL", ]
-
-
-    if (!is.matrix(breakpointFinal))
-        breakpointFinal <- matrix(breakpointFinal, nrow = 1)
-    
-    
     breakpointDataFrame <- matrix("N", ncol = dim(rawcntMatrix)[1] + 3,
                               nrow = dim(breakpointFinal)[1])
-
-
-    
     colnames(breakpointDataFrame) <- c("chr", "start", "end", rownames(rawcntMatrix))
-
-
-    
     breakpointDataFrame[, c(2, 3)] <- breakpointFinal[, c(2, 3)]
 
     breakpointDataFrame[, 1] <- rep(objectCNVrd2@chr, dim(breakpointFinal)[1])
 
     shortReport <- reportOutData[, c(1, 5, 7, 8)]
-
     shortReport <- shortReport[shortReport[, 2] != "NORMAL", ]
 
-
-    if (!is.matrix(shortReport))
-        shortReport <- matrix(shortReport, nrow = 1)
-
-    if (!is.null(shortReport) & dim(shortReport)[1] > 0){
-        for (jj in 1:dim(breakpointDataFrame)[1]){
+    for (jj in 1:dim(breakpointDataFrame)[1]){
         tempShortData <- shortReport[(shortReport[, 3] == breakpointDataFrame[jj, 2])
                                & (shortReport[, 4] == breakpointDataFrame[jj, 3]),]
 
@@ -172,17 +127,13 @@ SRBreak <- function(readDepthWindow = 500,
                 breakpointDataFrame[jj, indexColumn] <- tempShortData[2]
 
                 }
-        }}
+        }
 
 
-    if (dim(breakpointDataFrame)[1] > 1)
-        breakpointDataFrame <- breakpointDataFrame[order(breakpointDataFrame[, 2]),]
+    breakpointDataFrame <- breakpointDataFrame[order(breakpointDataFrame[, 2]),]
 
-    print(breakpointDataFrame)
     breakpointDataFrame <- breakpointDataFrame[(as.numeric(breakpointDataFrame[, 3]) - as.numeric(breakpointDataFrame[, 2])) >= 1000,]
 
-    
-    
     return(list(svResult = breakpointDataFrame, objectSRBreak = objectCNVrd2,
            polymorphicRegionObject = polymorphicRegion))
 
