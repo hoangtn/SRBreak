@@ -5,7 +5,7 @@ SRBreak <- function(readDepthWindow = 500,
                     byMAPPABILITYcontent = 1, mappabilityFile = NULL, useMixtureModel2ClusterGroup = FALSE,
 
                     detectAllRegion = FALSE, quantileThresholdOfSD = 0.85, lowerCNThreshold = -0.5,
-                    upperCNThreshold = 0.5, countThreshold = NULL, 
+                    upperCNThreshold = 0.5, countThreshold = 5, 
                     sigMaTemp = readDepthWindow/3, NTimes = 50, testType = c("Count", "SD", "positiveCount", "negativeCount"),
                     
                     pemMappingQuality = 0,  epsilonPairedOpen = NULL, thresholdOfIntersectionBetweenRDandPEM = 0.8,
@@ -14,9 +14,7 @@ SRBreak <- function(readDepthWindow = 500,
                     sdSplitRead = 0.5, usingPairedEnds = TRUE,
                     nIncreaseSampleSize = NULL , minLengthSV = 5000,
                     inputRawReadCountMatrix = NULL,
-                    epsilonCovDET = -1,
-                    NTimesThreshold = 50,
-                    NtransferToOtherPackage = 20000){
+                    epsilonCovDET = 0.001 ){
 
 
 #####################RD approach###########################################################
@@ -78,9 +76,7 @@ SRBreak <- function(readDepthWindow = 500,
         temp <- x/median(x)
         temp <- temp - 1
         return(temp)}))
-
-    if (is.null(countThreshold))
-        countThreshold <- max(1, as.integer(0.075*dim(rawcntMatrix)[1]))
+    
 ##Segment read counts into different regions
     resultSegment <- CNVrd2::segmentSamples(Object = objectCNVrd2,
                                     stdCntMatrix = rawcntMatrix)
@@ -105,9 +101,7 @@ SRBreak <- function(readDepthWindow = 500,
                                       sigMaTemp = sigMaTemp, NTimes = NTimes,
                                       useMixtureModel2ClusterGroup = useMixtureModel2ClusterGroup,
                                       minLengthSV = minLengthSV,
-                                      epsilonCovDET = epsilonCovDET,
-                                      NTimesThreshold = NTimesThreshold,
-                                      NtransferToOtherPackage = NtransferToOtherPackage)
+                                      epsilonCovDET = epsilonCovDET)
 
 ############################################################################################
 ############################################################################################
@@ -220,9 +214,6 @@ getSplitReadBreakpoint <- function(resultFromRD = NULL,
     ############################################################
     normalGroup <- resultFromRD[resultFromRD[, dim(resultFromRD)[2] ] == "NORMAL", ]
     resultFromRD<- resultFromRD[resultFromRD[, dim(resultFromRD)[2] ] != "NORMAL", ]
-
-    message("resultFromRD: ", class(resultFromRD))
-    
     tempGroup <- rep(1, dim(resultFromRD)[1])
     nAA <- 2
 
@@ -812,8 +803,7 @@ detectBreakPointFromRD <- function(polymorphicObject,
                                    NTimes = 50,
              testType = c("Count", "positiveCount", "negativeCount", "SD"),
                                    useMixtureModel2ClusterGroup = FALSE, minLengthSV = 5000,
-                                   epsilonCovDET = 0,
-                                   NTimesThreshold = 20, NtransferToOtherPackage = 10){
+                                   epsilonCovDET = 0.0001){
 
     testType <- match.arg(testType)
 
@@ -899,27 +889,24 @@ detectBreakPointFromRD <- function(polymorphicObject,
             
         if (is.null(dim(subSD2))){
 
-                message("Using Mclust to cluster for one-dimension data")
+            if (sd(subSD2) < epsilonCovDET){
+                classM <- rep(1, length(subSD2))
+                names(classM) <- names(subSD2)
+            }  else
+                            if (max(dim(subSD2)) < 20)
+                classM <-  mclust::Mclust(subSD2, modelNames="EII")$classification
+            else
+                classM <- HDclassif::hddc(subSD2)$class
 
                  classM <-  mclust::Mclust(subSD2)$classification
-             
             
         } else {
-
-                if (max(dim(subSD2)) < NtransferToOtherPackage){
-                    message("Using Mclust to cluster for multi-dimension data")
-                    
-                    classM <-  mclust::Mclust(subSD2, modelNames="EII")$classification
-                } else {
-                    message("Using HDclassif to cluster")
-                    classM <- HDclassif::hddc(subSD2)$class
-                }
-
-            
-                
+            if (det(cov(subSD2)) < epsilonCovDET){
+                classM <- rep(1, dim(subSD2)[1])
+                names(classM) <- rownames(subSD2)
+            } else
+                classM <-  mclust::Mclust(subSD2, modelNames="EII")$classification
         }
-        message("Number of Class M", table(classM))
-        
         classM1 <- cbind(classM, subSD2)
 ####################################################################
 ####################################################################
@@ -968,14 +955,8 @@ detectBreakPointFromRD <- function(polymorphicObject,
         nSample <- dim(tempData)[1]
         tempTakeScore <- matrix(0, ncol = 2, nrow = nSample)
 
-        if (is.null(NTimes))
-            NTimes <- nSample
-        message("Check a threshold to resample")
-        if (NTimesThreshold > nSample)
-            NTimesThreshold <- nSample
-        for (k1 in 1:NTimesThreshold){
-
-            message("Resample with placement")
+        for (k1 in 1:nSample){
+                    
             tempData1 <- tempData[sample(1:nSample, NTimes*nSample, replace=TRUE),]
               if (!is.matrix(tempData1))
                 tempData1 <- matrix(tempData1, ncol = ncol(tempData))
@@ -1060,8 +1041,7 @@ rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM,
                                         upperCNThreshold = 0.4,
                                         lowerCNThreshold = -0.5,
                                         windows = 500,
-                                        sigMaTemp = windows/3,
-                                        NTimesThreshold = 20){
+                                        sigMaTemp = windows/3){
     outData <- NULL
 
     for (ii in 1:length(table(classM))){
