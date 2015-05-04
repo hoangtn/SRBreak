@@ -187,7 +187,6 @@ SRBreak <- function(readDepthWindow = 500,
     if (dim(breakpointDataFrame)[1] > 1)
         breakpointDataFrame <- breakpointDataFrame[order(breakpointDataFrame[, 2]),]
 
-    print(breakpointDataFrame)
     breakpointDataFrame <- breakpointDataFrame[(as.numeric(breakpointDataFrame[, 3]) - as.numeric(breakpointDataFrame[, 2])) >= minLengthSV,]
 
     
@@ -221,7 +220,6 @@ getSplitReadBreakpoint <- function(resultFromRD = NULL,
     normalGroup <- resultFromRD[resultFromRD[, dim(resultFromRD)[2] ] == "NORMAL", ]
     resultFromRD<- resultFromRD[resultFromRD[, dim(resultFromRD)[2] ] != "NORMAL", ]
 
-    message("resultFromRD: ", class(resultFromRD))
     
     tempGroup <- rep(1, dim(resultFromRD)[1])
     nAA <- 2
@@ -523,7 +521,7 @@ detectBreakpointFromPairedEnds <- function(resultFromRD = NULL,
     tempDataFrameOut <- NULL
 
     for (gG in groupFromRD){
-#        message(gG)
+
         subGroupFromRD <- names(tempGroup[tempGroup == gG])
         SubgroupTableFromRD <- groupTableFromRD[groupTableFromRD[, dim(groupTableFromRD)[2]] == gG, ]
         
@@ -877,6 +875,9 @@ detectBreakPointFromRD <- function(polymorphicObject,
         gene <- as.numeric(geneMatrix[kG, ])
         tempGene <- IRanges::intersect(IRanges(gene[1], gene[2]), mSD2)
 
+        message("Analysing the region: ")
+        print(tempGene)
+
         
 
         if (length(tempGene) > 0){
@@ -885,7 +886,7 @@ detectBreakPointFromRD <- function(polymorphicObject,
         tempGene <- tempGene[width(tempGene) == max(width(tempGene)),]
         tempGene <- mSD2[subjectHits(IRanges::findOverlaps(tempGene, mSD2)),]
 
-        print(tempGene)
+
 ###Find the idex of of the common region
         mSD3 <- mSD1[(mSD1[, 1] >= start(tempGene)) & (mSD1[, 2] <= end(tempGene)), ]
 ###Sub-region matrix
@@ -918,7 +919,8 @@ detectBreakPointFromRD <- function(polymorphicObject,
             
                 
         }
-        message("Number of Class M", table(classM))
+        message("Number of Class M: ")
+        print(table(classM))
         
         classM1 <- cbind(classM, subSD2)
 ####################################################################
@@ -947,7 +949,7 @@ detectBreakPointFromRD <- function(polymorphicObject,
 
             outData <- NULL
 
-    message("Running the clustering process using read-depth information")
+    message("Running the clustering process using read-depth information\n")
     for (ii in as.numeric(names(table(classM)))){
         #Combine classes and the matrix
         subER1 <- cbind(classM, dataMatrix[pmatch(names(classM), rownames(dataMatrix)),])
@@ -970,12 +972,10 @@ detectBreakPointFromRD <- function(polymorphicObject,
 
         if (is.null(NTimes))
             NTimes <- nSample
-        message("Check a threshold to resample")
         if (NTimesThreshold > nSample)
             NTimesThreshold <- nSample
         for (k1 in 1:NTimesThreshold){
 
-            message("Resample with placement")
             tempData1 <- tempData[sample(1:nSample, NTimes*nSample, replace=TRUE),]
               if (!is.matrix(tempData1))
                 tempData1 <- matrix(tempData1, ncol = ncol(tempData))
