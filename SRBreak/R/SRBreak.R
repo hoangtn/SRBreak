@@ -15,7 +15,7 @@ SRBreak <- function(readDepthWindow = 500,
                     nIncreaseSampleSize = NULL , minLengthSV = 5000,
                     inputRawReadCountMatrix = NULL,
                     epsilonCovDET = -1,
-                    NTimesThreshold = 50,
+                    NTimesThreshold = 20,
                     NtransferToOtherPackage = 20000){
 
 
@@ -897,7 +897,7 @@ detectBreakPointFromRD <- function(polymorphicObject,
         subSD2 <- subRegionMatrix[, positionToPick]
 ####################Function to classfify the data into different groups###
 ###########################################################################
-            
+            message("Running the clustering process")
         if (is.null(dim(subSD2))){
 
                 message("Using Mclust to cluster for one-dimension data")
@@ -949,7 +949,7 @@ detectBreakPointFromRD <- function(polymorphicObject,
 
             outData <- NULL
 
-    message("Running the clustering process using read-depth information\n")
+
     for (ii in as.numeric(names(table(classM)))){
         #Combine classes and the matrix
         subER1 <- cbind(classM, dataMatrix[pmatch(names(classM), rownames(dataMatrix)),])
@@ -974,9 +974,20 @@ detectBreakPointFromRD <- function(polymorphicObject,
             NTimes <- nSample
         if (NTimesThreshold > nSample)
             NTimesThreshold <- nSample
+
+        if (nSample > 50)
+            NTimesThreshold <- 5
+        message(paste("Running the resampling process: ", NTimesThreshold, " times\n", sep = ""))
+        message(paste("Running the resampling process with nSample = : ", nSample, sep = ""))
+
+
         for (k1 in 1:NTimesThreshold){
 
-            tempData1 <- tempData[sample(1:nSample, NTimes*nSample, replace=TRUE),]
+            message("Resample with k1 = ", k1)
+            if (k1 == 1)
+                tempData1 <- tempData
+            else
+                tempData1 <- tempData[sample(1:nSample, NTimes*nSample, replace=TRUE),]
               if (!is.matrix(tempData1))
                 tempData1 <- matrix(tempData1, ncol = ncol(tempData))
             for (kk in 1:length(tempPos)){
