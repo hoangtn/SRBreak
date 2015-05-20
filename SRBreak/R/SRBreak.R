@@ -75,7 +75,9 @@ SRBreak <- function(readDepthWindow = 500,
     ###############################################################
     ###Transform data to use CNVrd2
     rawcntMatrix <- t(apply(rawcntMatrix01, 1, function(x){
-        temp <- x/median(x)
+        temp <- x
+        if (median(x) > 0)
+            temp <- x/median(x)
         temp <- temp - 1
         return(temp)}))
 
@@ -116,8 +118,11 @@ SRBreak <- function(readDepthWindow = 500,
 
     reportOutData <- NULL
     for (kk in 1:length(testOut)){
+
+        testOutPairedEnd <- testOut[[kk]]
         ###########Use paired-end approach
-        testOutPairedEnd <- detectBreakpointFromPairedEnds(resultFromRD = testOut[[kk]],
+        if (usingPairedEnds == TRUE)
+            testOutPairedEnd <- detectBreakpointFromPairedEnds(resultFromRD = testOut[[kk]],
                                    dirBamFile = dirBamFile,
                                    windows = objectCNVrd2@windows, chr = objectCNVrd2@chr,
                                    qualityThreshold = pemMappingQuality,
@@ -485,6 +490,9 @@ detectBreakpointFromPairedEnds <- function(resultFromRD = NULL,
                                    epsilonPairedOpen = NULL,
                                            thresholdOfIntersection = 0.9,
                                            insertSize = 500, readLength = 100){
+
+    message("Using paired-end information")
+    
     if (is.na(dirBamFile))
         dirBamFile <- "./"
     if (substr(dirBamFile, length(dirBamFile), 1) != "/")
@@ -977,8 +985,9 @@ detectBreakPointFromRD <- function(polymorphicObject,
 
         if (nSample > 50)
             NTimesThreshold <- 5
-        message(paste("Running the resampling process: ", NTimesThreshold, " times\n", sep = ""))
-        message(paste("Running the resampling process with nSample = : ", nSample, sep = ""))
+        
+        message(paste("\nRunning the resampling process: ", NTimesThreshold, " times\n", sep = ""))
+        message(paste("Running the resampling process with nSample =  ", nSample, sep = ""))
 
 
         for (k1 in 1:NTimesThreshold){
@@ -1001,16 +1010,31 @@ detectBreakPointFromRD <- function(polymorphicObject,
             names(scorePos) <- tempPos
             tempOutScoreAA <- sort(scorePos, decreasing = TRUE)[1:2]
             tempOutScoreAA <- sort(as.numeric(names(tempOutScoreAA)))
-            tempTakeScore[k1, ] <- tempOutScoreAA
+
+            message("tempOutScoreAA = ", tempOutScoreAA)
+            message("Finish k1 = ", k1)
+                tempTakeScore[k1, ] <- tempOutScoreAA
             }
 
+        
+        if (is.matrix(tempTakeScore) | is.data.frame(tempTakeScore))
+            tempTakeScore <- tempTakeScore[tempTakeScore[, 1] < tempTakeScore[, 2], ]
+
+        
+        
         #aa <- substr(rownames(tempData), 1, 7)
         aa <- rownames(tempData)
-        breakSout <- apply(tempTakeScore, 2, median)
+
+        breakSout <- tempTakeScore
+
+     
+        message("breakSout: ", breakSout)
+        if (!is.null(dim(tempTakeScore))){
         tempTakeScoreL <- sort(tempTakeScore[, 1])
         tempTakeScoreR <- sort(tempTakeScore[, 2])
         breakSout[1] <- tempTakeScoreL[floor((length(tempTakeScore) + 1)/2)]
         breakSout[2] <- tempTakeScoreR[floor((length(tempTakeScore) + 1)/2)]
+    }
         ###Obtain positions of two breakpoints
         leftPos <- as.numeric(rownames(mSD3[mSD3[, 1] == breakSout[1],]))
         rightPos <- as.numeric(rownames(mSD3[mSD3[, 2] == breakSout[2],]))
@@ -1075,6 +1099,7 @@ rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM,
                                         NTimesThreshold = 20){
     outData <- NULL
 
+    message("###Running rdIdentifyBreakPointOfGroup###")
     for (ii in 1:length(table(classM))){
         #Combine classes and the matrix
         subER1 <- cbind(classM, dataMatrix[pmatch(names(classM), rownames(dataMatrix)),])

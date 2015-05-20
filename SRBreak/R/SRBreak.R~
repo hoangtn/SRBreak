@@ -1,17 +1,22 @@
 SRBreak <- function(readDepthWindow = 500,
                     chr = NULL, st  = NULL, en = NULL,
                     dirBamFile = NULL, genes = NULL, geneNames = NULL,
-                    rdQualityMapping = 10, correctGC = TRUE, byGCcontent= 1, useRSamtoolsToCount = FALSE,
-                    byMAPPABILITYcontent = 1, mappabilityFile = NULL,
+                    rdQualityMapping = 0, correctGC = TRUE, byGCcontent= 1, useRSamtoolsToCount = FALSE,
+                    byMAPPABILITYcontent = 1, mappabilityFile = NULL, useMixtureModel2ClusterGroup = FALSE,
 
-                    detectAllRegion = TRUE, quantileThresholdOfSD = 0.85, lowerCNThreshold = -0.3,
-                    upperCNThreshold = 0.3, countThreshold = 5, 
-                    sigMaTemp = windows/3, NTimes = 50, testType = c("SD", "Count", "positiveCount", "negativeCount"),
+                    detectAllRegion = FALSE, quantileThresholdOfSD = 0.85, lowerCNThreshold = -0.5,
+                    upperCNThreshold = 0.5, countThreshold = NULL, 
+                    sigMaTemp = readDepthWindow/3, NTimes = 50, testType = c("Count", "SD", "positiveCount", "negativeCount"),
                     
-                    pemMappingQuality = 0,  epsilonPairedOpen = NULL, thresholdOfIntersectionBetweenRDandPEM = 0.7,
+                    pemMappingQuality = 0,  epsilonPairedOpen = NULL, thresholdOfIntersectionBetweenRDandPEM = 0.8,
 
-                    splitreadMappingQuality = 0, epsilonSplitReadOpen = 160,
-                    sdSplitRead = 0.5, usingPairedEnds = TRUE){
+                    splitreadMappingQuality = 0, epsilonSplitReadOpen = 2*readDepthWindow,
+                    sdSplitRead = 0.5, usingPairedEnds = TRUE,
+                    nIncreaseSampleSize = NULL , minLengthSV = 5000,
+                    inputRawReadCountMatrix = NULL,
+                    epsilonCovDET = -1,
+                    NTimesThreshold = 20,
+                    NtransferToOtherPackage = 20000){
 
 
 #####################RD approach###########################################################
@@ -31,10 +36,14 @@ SRBreak <- function(readDepthWindow = 500,
 
 
     #############Use CNVrd2 to count read
+    if (!is.null(inputRawReadCountMatrix)){
+        rawcntMatrix0 <- inputRawReadCountMatrix
+    } else {
     rawcntMatrix0 <- CNVrd2::countReadInWindow(Object = objectCNVrd2,
                                        rawReadCount = TRUE, qualityThreshold = rdQualityMapping,
                                        correctGC = correctGC, byGCcontent= byGCcontent,
                                        useRSamtoolsToCount = useRSamtoolsToCount)
+}
     ############Correct mappability bias
 
     message("Correcting mappability bias")
@@ -42,13 +51,38 @@ SRBreak <- function(readDepthWindow = 500,
                                      chr = objectCNVrd2@chr, start = objectCNVrd2@st,
                                      end = objectCNVrd2@en,
                                      mappabilityFile = mappabilityFile, 
-                                     byMAPPABILITYcontent = byMAPPABILITYcontent)
+                                     byMAPPABILITYcontent = byMAPPABILITYcontent  )
 
+
+    #######For single sample, this step is aimed to make a pseu-do matrix of multiple samples (not good)
+    
+    if (!is.null(nIncreaseSampleSize)){
+        tempNameSample <- rownames(rawcntMatrix01)
+
+        
+
+        newMatrixSample <- matrix(rep(rawcntMatrix01[1, ], nIncreaseSampleSize), ncol = length(rawcntMatrix01[1, ]), byrow = TRUE)
+        
+        rownames(newMatrixSample) <- paste(tempNameSample, 1:nIncreaseSampleSize, sep = "_")
+
+        rawcntMatrix01 <- newMatrixSample
+
+    }
+
+
+
+
+    ###############################################################
     ###Transform data to use CNVrd2
     rawcntMatrix <- t(apply(rawcntMatrix01, 1, function(x){
-        temp <- x/median(x)
+        temp <- x
+        if (median(x) > 0)
+            temp <- x/median(x)
         temp <- temp - 1
         return(temp)}))
+
+    if (is.null(countThreshold))
+        countThreshold <- max(1, as.integer(0.075*dim(rawcntMatrix)[1]))
 ##Segment read counts into different regions
     resultSegment <- CNVrd2::segmentSamples(Object = objectCNVrd2,
                                     stdCntMatrix = rawcntMatrix)
@@ -70,7 +104,12 @@ SRBreak <- function(readDepthWindow = 500,
                                       lowerCNThreshold = lowerCNThreshold,
                                       countThreshold = countThreshold,
                                       testType = testType,
-                                      sigMaTemp = sigMaTemp, NTimes = NTimes)
+                                      sigMaTemp = sigMaTemp, NTimes = NTimes,
+                                      useMixtureModel2ClusterGroup = useMixtureModel2ClusterGroup,
+                                      minLengthSV = minLengthSV,
+                                      epsilonCovDET = epsilonCovDET,
+                                      NTimesThreshold = NTimesThreshold,
+                                      NtransferToOtherPackage = NtransferToOtherPackage)
 
 ############################################################################################
 ############################################################################################
@@ -103,17 +142,35 @@ SRBreak <- function(readDepthWindow = 500,
     ###########Produce outputs
     breakpointFinal <- IRanges::unique(reportOutData[, c(5, 7, 8)])
     breakpointFinal <- breakpointFinal[breakpointFinal[, 1] != "NORMAL", ]
+
+
+    if (!is.matrix(breakpointFinal))
+        breakpointFinal <- matrix(breakpointFinal, nrow = 1)
+    
+    
     breakpointDataFrame <- matrix("N", ncol = dim(rawcntMatrix)[1] + 3,
                               nrow = dim(breakpointFinal)[1])
+
+
+    
     colnames(breakpointDataFrame) <- c("chr", "start", "end", rownames(rawcntMatrix))
+
+
+    
     breakpointDataFrame[, c(2, 3)] <- breakpointFinal[, c(2, 3)]
 
     breakpointDataFrame[, 1] <- rep(objectCNVrd2@chr, dim(breakpointFinal)[1])
 
     shortReport <- reportOutData[, c(1, 5, 7, 8)]
+
     shortReport <- shortReport[shortReport[, 2] != "NORMAL", ]
 
-    for (jj in 1:dim(breakpointDataFrame)[1]){
+
+    if (!is.matrix(shortReport))
+        shortReport <- matrix(shortReport, nrow = 1)
+
+    if (!is.null(shortReport) & dim(shortReport)[1] > 0){
+        for (jj in 1:dim(breakpointDataFrame)[1]){
         tempShortData <- shortReport[(shortReport[, 3] == breakpointDataFrame[jj, 2])
                                & (shortReport[, 4] == breakpointDataFrame[jj, 3]),]
 
@@ -126,13 +183,16 @@ SRBreak <- function(readDepthWindow = 500,
                 breakpointDataFrame[jj, indexColumn] <- tempShortData[2]
 
                 }
-        }
+        }}
 
 
-    breakpointDataFrame <- breakpointDataFrame[order(breakpointDataFrame[, 2]),]
+    if (dim(breakpointDataFrame)[1] > 1)
+        breakpointDataFrame <- breakpointDataFrame[order(breakpointDataFrame[, 2]),]
 
-    breakpointDataFrame <- breakpointDataFrame[(as.numeric(breakpointDataFrame[, 3]) - as.numeric(breakpointDataFrame[, 2])) >= 1000,]
+    breakpointDataFrame <- breakpointDataFrame[(as.numeric(breakpointDataFrame[, 3]) - as.numeric(breakpointDataFrame[, 2])) >= minLengthSV,]
 
+    
+    
     return(list(svResult = breakpointDataFrame, objectSRBreak = objectCNVrd2,
            polymorphicRegionObject = polymorphicRegion))
 
@@ -161,6 +221,8 @@ getSplitReadBreakpoint <- function(resultFromRD = NULL,
     ############################################################
     normalGroup <- resultFromRD[resultFromRD[, dim(resultFromRD)[2] ] == "NORMAL", ]
     resultFromRD<- resultFromRD[resultFromRD[, dim(resultFromRD)[2] ] != "NORMAL", ]
+
+    
     tempGroup <- rep(1, dim(resultFromRD)[1])
     nAA <- 2
 
@@ -461,7 +523,7 @@ detectBreakpointFromPairedEnds <- function(resultFromRD = NULL,
     tempDataFrameOut <- NULL
 
     for (gG in groupFromRD){
-        message(gG)
+
         subGroupFromRD <- names(tempGroup[tempGroup == gG])
         SubgroupTableFromRD <- groupTableFromRD[groupTableFromRD[, dim(groupTableFromRD)[2]] == gG, ]
         
@@ -595,6 +657,9 @@ getPairedEndPositionForGroup <- function(dirBamFile, listFile = NULL, windows = 
         returnValue <- FALSE
         
         t10 <- IRanges::IRanges(x[1], x[2])
+        message("\nt10: ", t10, "\n")
+        print(t10)
+        print(tempTest)
         t1 <- IRanges::reduce(IRanges::intersect(t10, tempTest))
         if (length(t1) > 0){
             testT1 <- width(t1)/width(tempTest)
@@ -631,235 +696,13 @@ getPairedEndPositionForGroup <- function(dirBamFile, listFile = NULL, windows = 
 #############################################
 ############################################
 ###############NEW FUNCTION#################
-detectBreakPointFromRD <- function(polymorphicObject,
-                                   windows = 500, 
-                                   genes, 
-                                   quantileThreshold = 0.85,
-                                   countThreshold = 5,
-                                   sigMaTemp = windows/3,
-                                   upperCNThreshold = 0.4,
-                                   lowerCNThreshold = -0.4,
-                                   detectAllRegion = FALSE,
-                                   NTimes = 50,
-             testType = c("Count", "SD", "positiveCount", "negativeCount")){
-
-    testType <- match.arg(testType)
-
-    print(testType)
-    
-    listBreakPointOut <- NULL
-
-    polymorphicRegion <- polymorphicObject
-    
-    subRegionMatrix <- polymorphicRegion$subRegionMatrix
-    subRegion <- polymorphicRegion$subRegion
-
-    if (testType == "Count")
-        outSignal <- apply(subRegionMatrix, 2, function(x)
-                           length(x[(x >= upperCNThreshold) | (x <= lowerCNThreshold)]))
-    
-
-    if (testType == "SD")
-        outSignal <- apply(subRegionMatrix, 2, sd)
-    if (testType == "positiveCount")
-        outSignal <- apply(subRegionMatrix, 2, function(x) length(x[x >= upperCNThreshold]))
-    if (testType == "negativeCount")
-        outSignal <- apply(subRegionMatrix, 2, function(x) length(x[x <= lowerCNThreshold]))
-###########################################################################
-###########################################################################
-    mSD <- data.frame(polymorphicRegion$subRegion, outSignal)
-    mSD1 <- mSD[mSD[, 3] >= countThreshold, ]
-
-    if (testType == "SD"){
-        sdThreshold = quantile(mSD[, 3], quantileThreshold)
-        mSD1 <- mSD[mSD[, 3] >= sdThreshold, ]
-        }
-###########################################################################
-##Reduce to polymorphic regions############################################
-    if (dim(mSD1)[1] > 0){
-        
-    mSD2 <- IRanges::reduce(IRanges(mSD1[, 1], mSD1[, 2]))
-
-    geneMatrix <- matrix(genes, ncol = 2, byrow = TRUE)
-
-
-    if (detectAllRegion){
-        geneMatrix <- data.frame(start(mSD2), end(mSD2))
-        geneMatrix <- geneMatrix[geneMatrix[, 2] - geneMatrix[, 1] >= 1000,]
-    }
-    
-
-        print(geneMatrix)
-
-    
-#######################################################################
-####Scan for all genes################################################    
-    for (kG in 1:dim(geneMatrix)[1]){
-        message("kG: ", kG)
-
-       
-        gene <- geneMatrix[kG, ]
-
-        tempGene <- IRanges::intersect(IRanges(gene[1], gene[2]), mSD2)
-
-        
-
-        if (length(tempGene) > 0){
-
-        
-        tempGene <- tempGene[width(tempGene) == max(width(tempGene)),]
-        tempGene <- mSD2[subjectHits(findOverlaps(tempGene, mSD2)),]
-
-        print(tempGene)
-###Find the idex of of the common region
-        mSD3 <- mSD1[(mSD1[, 1] >= start(tempGene)) & (mSD1[, 2] <= end(tempGene)), ]
-###Sub-region matrix
-        subRegionMatrix <- polymorphicRegion$subRegionMatrix
-###########################################################################    
-###Got a submatrix only including the common region########################
-        positionToPick <- as.numeric(rownames(mSD3))
-        subSD2 <- subRegionMatrix[, positionToPick]
-####################Function to classfify the data into different groups###
-###########################################################################
-        if (is.null(dim(subSD2))){
-            classM <-  mclust::Mclust(subSD2)$classification
-        } else
-            classM <-  mclust::Mclust(subSD2, modelNames="EII")$classification
-        classM1 <- cbind(classM, subSD2)
-####################################################################
-####################################################################
-        tempPos <- unique(c(mSD3[, 1], mSD3[, 2]))
-        tempPosForSub <- as.numeric(rownames(mSD3))
-#########Add one left value and one right value
-        tempPosForSub <- c(tempPosForSub[1] - 1, tempPosForSub, tempPosForSub[length(tempPosForSub)] + 1)
-
-        if (tempPosForSub[1] == 0)
-            tempPosForSub[1] <- 1
-        if (tempPosForSub[length(tempPosForSub) - 1] == dim(subRegionMatrix)[2])
-            tempPosForSub[length(tempPosForSub)] <- tempPosForSub[length(tempPosForSub) - 1]
-
-###################################################################    
-############subER: a matrix of common regions######################
-        subER <- subRegionMatrix[, tempPosForSub]
-
-##Change the first and last column to zero
-        subER[, 1] <- rep(0, dim(subER)[1])
-        subER[, dim(subER)[2]] <- rep(0, dim(subER)[1])
-#############################################
-###Finding breakpoints
-        dataMatrix <- subER
-
-
-            outData <- NULL
-
-    for (ii in as.numeric(names(table(classM)))){
-        #Combine classes and the matrix
-        message("classM ii: ", ii)
-        subER1 <- cbind(classM, dataMatrix[pmatch(names(classM), rownames(dataMatrix)),])
-        #Retain only a sub-matrix in class being considered
-        tempData <- subER1[subER1[, 1] ==ii, ]
-        #tempData <- matrix(tempData, ncol = dim(subER1)[2])
-        #tempData <- matrix(tempData, ncol = length(tempData))
-        if (is.null(dim(tempData))){
-            tempData <- tempData[-1]
-            tempData <- matrix(tempData, nrow = 1)
-            rownames(tempData) <- names(classM[classM == ii])
-            } else
-                tempData <- tempData[ , -1]
-
-        scorePos <- NULL
-        tempScore <- NULL
-        ###Table random sample
-        nSample <- dim(tempData)[1]
-        tempTakeScore <- matrix(0, ncol = 2, nrow = nSample)
-
-        for (k1 in 1:nSample){
-                    
-            tempData1 <- tempData[sample(1:nSample, NTimes*nSample, replace=TRUE),]
-              if (!is.matrix(tempData1))
-                tempData1 <- matrix(tempData1, ncol = ncol(tempData))
-            for (kk in 1:length(tempPos)){
-                tempScore[kk] <- sum(abs(tempData1[, kk + 1] - tempData1[, kk]))
-                }
-            names(tempScore) <- tempPos
-            for (kk in 1:length(tempPos)){
-                scorePos[kk] <- sum(tempScore*dnorm(x = tempPos, mean = tempPos[kk], sd = sigMaTemp))
-
-                }
-            names(scorePos) <- tempPos
-            tempOutScoreAA <- sort(scorePos, decreasing = TRUE)[1:2]
-            tempOutScoreAA <- sort(as.numeric(names(tempOutScoreAA)))
-            tempTakeScore[k1, ] <- tempOutScoreAA
-            }
-
-        #aa <- substr(rownames(tempData), 1, 7)
-        aa <- rownames(tempData)
-        breakSout <- apply(tempTakeScore, 2, median)
-        tempTakeScoreL <- sort(tempTakeScore[, 1])
-        tempTakeScoreR <- sort(tempTakeScore[, 2])
-        breakSout[1] <- tempTakeScoreL[floor((length(tempTakeScore) + 1)/2)]
-        breakSout[2] <- tempTakeScoreR[floor((length(tempTakeScore) + 1)/2)]
-        ###Obtain positions of two breakpoints
-        leftPos <- as.numeric(rownames(mSD3[mSD3[, 1] == breakSout[1],]))
-        rightPos <- as.numeric(rownames(mSD3[mSD3[, 2] == breakSout[2],]))
-        groupSubMatrix <- subRegionMatrix[, leftPos:rightPos]
-
-####################Take segmentation results
-        if (is.matrix(groupSubMatrix)){
-            groupSubMatrix <- groupSubMatrix[pmatch(aa, rownames(groupSubMatrix)),]
-            } else{
-    ###If leftPos == rightPos
-                groupSubMatrix <- groupSubMatrix[pmatch(aa, names(groupSubMatrix))]}
-        if (is.matrix(groupSubMatrix)){
-            scoreOfGroup <- apply(groupSubMatrix, 1, mean)
-            } else{
-                scoreOfGroup <- mean(groupSubMatrix)
-                }
-        CNStatus <- ifelse(scoreOfGroup >= upperCNThreshold, "DUP",
-                   ifelse(scoreOfGroup <= lowerCNThreshold, "DEL", "NORMAL"))
-        
-##Add into data.frame
-        tempOut <- data.frame(aa, rep(breakSout[1], length(aa)),
-                                     rep(breakSout[2], length(aa)),
-                      scoreOfGroup, CNStatus)
-        outData <- rbind(outData, tempOut)
-
-    }
-    } else outData <- data.frame(rownames(subRegionMatrix),
-                                 rep(gene[1], dim(subRegionMatrix)[1]),
-                                 rep(gene[2], dim(subRegionMatrix)[1]),
-                                 rep(0, dim(subRegionMatrix)[1]),
-                                 rep("NORMAL", dim(subRegionMatrix)[1]))
-
-        
-    
-colnames(outData) <- c("Name", "Start", "End", "Score", "Status")
-
-        testStatus <- sort(names(table(outData$Status)))
-        
-       # if ((length(testStatus) > 1) | (testStatus[1] != "NORMAL"))
-            listBreakPointOut[[kG]] <- outData
-
-    }
-
-    if (!is.null(listBreakPointOut))
-    listBreakPointOut <- listBreakPointOut[!unlist(lapply(listBreakPointOut, is.null))]
-
-} else listBreakPointOut <- NULL
-    
-    
-    return(listBreakPointOut)
-}
-        
-        
-############################################################################
 ############################################################################
 ############################NEW FUNCTION###################################        
 rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM,
                                         upperCNThreshold = 0.4,
                                         lowerCNThreshold = -0.4,
                                         windows = 500,
-                                        sigMaTemp = windows/3){
+                                        sigMaTemp = windows/3, useMixtureModel2ClusterGroup = FALSE){
     outData <- NULL
 
     for (ii in 1:length(table(classM))){
@@ -924,6 +767,7 @@ rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM,
             } else{
                 scoreOfGroup <- mean(groupSubMatrix)
                 }
+        
         CNStatus <- ifelse(scoreOfGroup > upperCNThreshold, "DUP",
                    ifelse(scoreOfGroup < lowerCNThreshold, "DEL", "NORMAL"))
         
@@ -935,6 +779,22 @@ rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM,
         }
     
 colnames(outData) <- c("Name", "Start", "End", "Score", "Status")
+
+    ##################This option often results in errors
+    if (useMixtureModel2ClusterGroup){
+        scoreOfGroup <- outData$Score
+        names(scoreOfGroup) <- outData$Name
+        objectCluster <- new("clusteringCNVs", x = scoreOfGroup, k = 3)
+        groupCNVofScore <- CNVrd2::groupCNVs(Object = objectCluster, autoDetermineGroup = TRUE)
+        tempGroup <- groupCNVofScore$allGroups$Classification
+        checkingGroup <- abs(sapply(split(scoreOfGroup, tempGroup), median))
+        normalGroup <- as.numeric(names(which(checkingGroup == min(checkingGroup))))
+        tempGroupOut <- ifelse(tempGroup == normalGroup, "NORMAL",
+                       ifelse(tempGroup > normalGroup, "DUP", "DEL"))
+        outData$Status <- tempGroupOut
+              
+    }
+    
     return(outData)
 }
 
@@ -953,12 +813,14 @@ detectBreakPointFromRD <- function(polymorphicObject,
                                    lowerCNThreshold = -0.4,
                                    detectAllRegion = FALSE,
                                    NTimes = 50,
-             testType = c("Count", "SD", "positiveCount", "negativeCount")){
+             testType = c("Count", "positiveCount", "negativeCount", "SD"),
+                                   useMixtureModel2ClusterGroup = FALSE, minLengthSV = 5000,
+                                   epsilonCovDET = 0,
+                                   NTimesThreshold = 20, NtransferToOtherPackage = 10){
 
     testType <- match.arg(testType)
 
-    print(testType)
-    
+   
     listBreakPointOut <- NULL
 
     polymorphicRegion <- polymorphicObject
@@ -998,7 +860,12 @@ detectBreakPointFromRD <- function(polymorphicObject,
 
     if (detectAllRegion){
         geneMatrix <- data.frame(start(mSD2), end(mSD2))
-        geneMatrix <- geneMatrix[geneMatrix[, 2] - geneMatrix[, 1] >= 1000,]
+
+        message("gene Matrix: ")
+        print(geneMatrix)
+        message("=============")
+        
+        geneMatrix <- geneMatrix[geneMatrix[, 2] - geneMatrix[, 1] >= minLengthSV,]
     }
     
 
@@ -1009,10 +876,12 @@ detectBreakPointFromRD <- function(polymorphicObject,
 ####Scan for all genes################################################    
     for (kG in 1:dim(geneMatrix)[1]){
 
-        message("kG: ", kG)
 
         gene <- as.numeric(geneMatrix[kG, ])
         tempGene <- IRanges::intersect(IRanges(gene[1], gene[2]), mSD2)
+
+        message("Analysing the region: ")
+        print(tempGene)
 
         
 
@@ -1022,21 +891,42 @@ detectBreakPointFromRD <- function(polymorphicObject,
         tempGene <- tempGene[width(tempGene) == max(width(tempGene)),]
         tempGene <- mSD2[subjectHits(IRanges::findOverlaps(tempGene, mSD2)),]
 
-        print(tempGene)
+
 ###Find the idex of of the common region
         mSD3 <- mSD1[(mSD1[, 1] >= start(tempGene)) & (mSD1[, 2] <= end(tempGene)), ]
 ###Sub-region matrix
-        subRegionMatrix <- CNVrd2::polymorphicRegion$subRegionMatrix
+        subRegionMatrix <- polymorphicRegion$subRegionMatrix
 ###########################################################################    
 ###Got a submatrix only including the common region########################
         positionToPick <- as.numeric(rownames(mSD3))
         subSD2 <- subRegionMatrix[, positionToPick]
 ####################Function to classfify the data into different groups###
 ###########################################################################
+            message("Running the clustering process")
         if (is.null(dim(subSD2))){
-            classM <-  mclust::Mclust(subSD2)$classification
-        } else
-            classM <-  mclust::Mclust(subSD2, modelNames="EII")$classification
+
+                message("Using Mclust to cluster for one-dimension data")
+
+                 classM <-  mclust::Mclust(subSD2)$classification
+             
+            
+        } else {
+
+                if (max(dim(subSD2)) < NtransferToOtherPackage){
+                    message("Using Mclust to cluster for multi-dimension data")
+                    
+                    classM <-  mclust::Mclust(subSD2, modelNames="EII")$classification
+                } else {
+                    message("Using HDclassif to cluster")
+                    classM <- HDclassif::hddc(subSD2)$class
+                }
+
+            
+                
+        }
+        message("Number of Class M: ")
+        print(table(classM))
+        
         classM1 <- cbind(classM, subSD2)
 ####################################################################
 ####################################################################
@@ -1064,9 +954,9 @@ detectBreakPointFromRD <- function(polymorphicObject,
 
             outData <- NULL
 
+
     for (ii in as.numeric(names(table(classM)))){
         #Combine classes and the matrix
-        message("classM ii: ", ii)
         subER1 <- cbind(classM, dataMatrix[pmatch(names(classM), rownames(dataMatrix)),])
         #Retain only a sub-matrix in class being considered
         tempData <- subER1[subER1[, 1] ==ii, ]
@@ -1085,9 +975,25 @@ detectBreakPointFromRD <- function(polymorphicObject,
         nSample <- dim(tempData)[1]
         tempTakeScore <- matrix(0, ncol = 2, nrow = nSample)
 
-        for (k1 in 1:nSample){
-                    
-            tempData1 <- tempData[sample(1:nSample, NTimes*nSample, replace=TRUE),]
+        if (is.null(NTimes))
+            NTimes <- nSample
+        if (NTimesThreshold > nSample)
+            NTimesThreshold <- nSample
+
+        if (nSample > 50)
+            NTimesThreshold <- 5
+        
+        message(paste("\nRunning the resampling process: ", NTimesThreshold, " times\n", sep = ""))
+        message(paste("Running the resampling process with nSample =  ", nSample, sep = ""))
+
+
+        for (k1 in 1:NTimesThreshold){
+
+            message("Resample with k1 = ", k1)
+            if (k1 == 1)
+                tempData1 <- tempData
+            else
+                tempData1 <- tempData[sample(1:nSample, NTimes*nSample, replace=TRUE),]
               if (!is.matrix(tempData1))
                 tempData1 <- matrix(tempData1, ncol = ncol(tempData))
             for (kk in 1:length(tempPos)){
@@ -1101,12 +1007,28 @@ detectBreakPointFromRD <- function(polymorphicObject,
             names(scorePos) <- tempPos
             tempOutScoreAA <- sort(scorePos, decreasing = TRUE)[1:2]
             tempOutScoreAA <- sort(as.numeric(names(tempOutScoreAA)))
+
+            message("tempOutScoreAA = ", tempOutScoreAA)
+            message("Finish k1 = ", k1)
             tempTakeScore[k1, ] <- tempOutScoreAA
             }
 
+        message("tempTakeScore: ")
+        if (is.matrix(tempTakeScore) | is.data.frame(tempTakeScore))
+            tempTakeScore <- tempTakeScore[tempTakeScore[, 1] < tempTakeScore[, 2], ]
+
+        print(tempTakeScore)
+        
         #aa <- substr(rownames(tempData), 1, 7)
         aa <- rownames(tempData)
-        breakSout <- apply(tempTakeScore, 2, median)
+
+        breakSout <- tempTakeScore
+
+        if (is.matrix(breakSout) | is.data.frame(breakSout))
+            breakSout <- apply(breakSout, 2, median)
+
+        message("breakSout: ", breakSout)
+        
         tempTakeScoreL <- sort(tempTakeScore[, 1])
         tempTakeScoreR <- sort(tempTakeScore[, 2])
         breakSout[1] <- tempTakeScoreL[floor((length(tempTakeScore) + 1)/2)]
@@ -1169,9 +1091,10 @@ colnames(outData) <- c("Name", "Start", "End", "Score", "Status")
 #######################NEW FUNCTION#########################################        
 rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM,
                                         upperCNThreshold = 0.4,
-                                        lowerCNThreshold = -0.4,
+                                        lowerCNThreshold = -0.5,
                                         windows = 500,
-                                        sigMaTemp = windows/3){
+                                        sigMaTemp = windows/3,
+                                        NTimesThreshold = 20){
     outData <- NULL
 
     for (ii in 1:length(table(classM))){
@@ -1267,10 +1190,26 @@ correctMappability <- function(readCountMatrix, chr = NULL,
     if (max(mappabilityn) <= 1)
         mappabilityn <- mappabilityn*100
 
-    for (ii in 1:length(mappabilityn)){
-        tempM <- which(abs(mappabilityn - mappabilityn[ii]) <= byMAPPABILITYcontent)
-        mappabilityList[[ii]] <- tempM
-    }
+        
+     windowbyMAPPABILITYcontent <- seq(0, 100, by = byMAPPABILITYcontent)
+        if (windowbyMAPPABILITYcontent[length(windowbyMAPPABILITYcontent)] <= 100)
+            windowbyMAPPABILITYcontent[length(windowbyMAPPABILITYcontent)] <- 101
+        
+        dataframeToCorrect <- data.frame(windowbyMAPPABILITYcontent[-length(windowbyMAPPABILITYcontent)],
+                                 windowbyMAPPABILITYcontent[-1])
+
+    mappabilityList <- apply(dataframeToCorrect, 1, function(x){
+        tempMap <- which((mappabilityn >= x[1]) & (mappabilityn < x[2]))
+        return(tempMap)
+
+        })
+        
+
+        mappabilityList <- unique(mappabilityList)
+
+        mappabilityList <- mappabilityList[lapply(mappabilityList,length)>0]
+
+
         
     lengthMAPPABILITY <- length(mappabilityList)
 
