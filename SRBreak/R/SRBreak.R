@@ -1011,8 +1011,6 @@ detectBreakPointFromRD <- function(polymorphicObject,
             tempOutScoreAA <- sort(scorePos, decreasing = TRUE)[1:2]
             tempOutScoreAA <- sort(as.numeric(names(tempOutScoreAA)))
 
-            message("tempOutScoreAA = ", tempOutScoreAA)
-            message("Finish k1 = ", k1)
                 tempTakeScore[k1, ] <- tempOutScoreAA
             }
 
@@ -1028,7 +1026,7 @@ detectBreakPointFromRD <- function(polymorphicObject,
         breakSout <- tempTakeScore
 
      
-        message("breakSout: ", breakSout)
+#        message("breakSout: ", breakSout)
         if (!is.null(dim(tempTakeScore))){
         tempTakeScoreL <- sort(tempTakeScore[, 1])
         tempTakeScoreR <- sort(tempTakeScore[, 2])
