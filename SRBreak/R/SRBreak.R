@@ -16,7 +16,8 @@ SRBreak <- function(readDepthWindow = 500,
                     inputRawReadCountMatrix = NULL,
                     epsilonCovDET = -1,
                     NTimesThreshold = 20,
-                    NtransferToOtherPackage = 20000){
+                    NtransferToOtherPackage = 20000,
+                    reference_fasta = NULL){
 
 
 #####################RD approach###########################################################
@@ -42,7 +43,7 @@ SRBreak <- function(readDepthWindow = 500,
     rawcntMatrix0 <- CNVrd2::countReadInWindow(Object = objectCNVrd2,
                                        rawReadCount = TRUE, qualityThreshold = rdQualityMapping,
                                        correctGC = correctGC, byGCcontent= byGCcontent,
-                                       useRSamtoolsToCount = useRSamtoolsToCount)
+                                       useRSamtoolsToCount = useRSamtoolsToCount, reference_fasta = reference_fasta)
 }
     ############Correct mappability bias
 
@@ -903,6 +904,7 @@ detectBreakPointFromRD <- function(polymorphicObject,
 ###Got a submatrix only including the common region########################
         positionToPick <- as.numeric(rownames(mSD3))
         subSD2 <- subRegionMatrix[, positionToPick]
+
 ####################Function to classfify the data into different groups###
 ###########################################################################
             message("Running the clustering process")
@@ -929,7 +931,8 @@ detectBreakPointFromRD <- function(polymorphicObject,
         }
         message("Number of Class M: ")
         print(table(classM))
-        
+
+        names(classM) <- rownames(subRegionMatrix)
         classM1 <- cbind(classM, subSD2)
 ####################################################################
 ####################################################################
@@ -961,8 +964,10 @@ detectBreakPointFromRD <- function(polymorphicObject,
     for (ii in as.numeric(names(table(classM)))){
         #Combine classes and the matrix
         subER1 <- cbind(classM, dataMatrix[pmatch(names(classM), rownames(dataMatrix)),])
+
         #Retain only a sub-matrix in class being considered
         tempData <- subER1[subER1[, 1] ==ii, ]
+        
         #tempData <- matrix(tempData, ncol = dim(subER1)[2])
         #tempData <- matrix(tempData, ncol = length(tempData))
         if (is.null(dim(tempData))){
