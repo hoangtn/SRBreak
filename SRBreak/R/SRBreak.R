@@ -17,7 +17,7 @@ SRBreak <- function(readDepthWindow = 500,
                     epsilonCovDET = -1,
                     NTimesThreshold = 20,
                     NtransferToOtherPackage = 20000,
-                    reference_fasta = NULL){
+                    reference_fasta = NULL, printOut = FALSE){
 
 
 #####################RD approach###########################################################
@@ -110,7 +110,8 @@ SRBreak <- function(readDepthWindow = 500,
                                       minLengthSV = minLengthSV,
                                       epsilonCovDET = epsilonCovDET,
                                       NTimesThreshold = NTimesThreshold,
-                                      NtransferToOtherPackage = NtransferToOtherPackage)
+                                      NtransferToOtherPackage = NtransferToOtherPackage,
+                                      printOut = printOut)
 
 ############################################################################################
 ############################################################################################
@@ -128,7 +129,8 @@ SRBreak <- function(readDepthWindow = 500,
                                    windows = objectCNVrd2@windows, chr = objectCNVrd2@chr,
                                    qualityThreshold = pemMappingQuality,
                                    epsilonPairedOpen = epsilonPairedOpen,
-                                   thresholdOfIntersection = thresholdOfIntersectionBetweenRDandPEM)
+                                   thresholdOfIntersection = thresholdOfIntersectionBetweenRDandPEM,
+                                                               printOut = printOut)
         
 
         ##########Use split-read approach
@@ -490,9 +492,11 @@ detectBreakpointFromPairedEnds <- function(resultFromRD = NULL,
                                    qualityThreshold = 0,
                                    epsilonPairedOpen = NULL,
                                            thresholdOfIntersection = 0.9,
-                                           insertSize = 500, readLength = 100){
+                                           insertSize = 500, readLength = 100,
+                                           printOut = FALSE){
 
-    message("Using paired-end information")
+    if (printOut)
+        message("Using paired-end information")
     
     if (is.na(dirBamFile))
         dirBamFile <- "./"
@@ -820,7 +824,8 @@ detectBreakPointFromRD <- function(polymorphicObject,
              testType = c("Count", "positiveCount", "negativeCount", "SD"),
                                    useMixtureModel2ClusterGroup = FALSE, minLengthSV = 5000,
                                    epsilonCovDET = 0,
-                                   NTimesThreshold = 20, NtransferToOtherPackage = 10){
+                                   NTimesThreshold = 20, NtransferToOtherPackage = 10,
+                                   printOut = FALSE){
 
     testType <- match.arg(testType)
 
@@ -865,14 +870,17 @@ detectBreakPointFromRD <- function(polymorphicObject,
     if (detectAllRegion){
         geneMatrix <- data.frame(start(mSD2), end(mSD2))
 
+        if (printOut){
         message("gene Matrix: ")
         print(geneMatrix)
         message("=============")
+    }
         
         geneMatrix <- geneMatrix[geneMatrix[, 2] - geneMatrix[, 1] >= minLengthSV,]
     }
     
 
+    if (printOut)
         print(geneMatrix)
 
     
@@ -884,8 +892,10 @@ detectBreakPointFromRD <- function(polymorphicObject,
         gene <- as.numeric(geneMatrix[kG, ])
         tempGene <- IRanges::intersect(IRanges(gene[1], gene[2]), mSD2)
 
+        if (printOut){
         message("Analysing the region: ")
         print(tempGene)
+    }
 
         
 
@@ -907,9 +917,11 @@ detectBreakPointFromRD <- function(polymorphicObject,
 
 ####################Function to classfify the data into different groups###
 ###########################################################################
+        if (printOut)
             message("Running the clustering process")
         if (is.null(dim(subSD2))){
 
+            if (printOut)
                 message("Using Mclust to cluster for one-dimension data")
 
                  classM <-  mclust::Mclust(subSD2)$classification
@@ -918,10 +930,12 @@ detectBreakPointFromRD <- function(polymorphicObject,
         } else {
 
                 if (max(dim(subSD2)) < NtransferToOtherPackage){
+                    if (printOut)
                     message("Using Mclust to cluster for multi-dimension data")
                     
                     classM <-  mclust::Mclust(subSD2, modelNames="EII")$classification
                 } else {
+                    if (printOut)
                     message("Using HDclassif to cluster")
                     classM <- HDclassif::hddc(subSD2)$class
                 }
@@ -929,8 +943,11 @@ detectBreakPointFromRD <- function(polymorphicObject,
             
                 
         }
+
+        if (printOut){
         message("Number of Class M: ")
         print(table(classM))
+    }
 
         names(classM) <- rownames(subRegionMatrix)
         classM1 <- cbind(classM, subSD2)
@@ -990,14 +1007,16 @@ detectBreakPointFromRD <- function(polymorphicObject,
 
         if (nSample > 50)
             NTimesThreshold <- 5
-        
-        message(paste("\nRunning the resampling process: ", NTimesThreshold, " times\n", sep = ""))
-        message(paste("Running the resampling process with nSample =  ", nSample, sep = ""))
+        if (printOut){
+            message(paste("\nRunning the resampling process: ", NTimesThreshold, " times\n", sep = ""))
+            message(paste("Running the resampling process with nSample =  ", nSample, sep = ""))
+        }
 
 
         for (k1 in 1:NTimesThreshold){
 
-            message("Resample with k1 = ", k1)
+            if (printOut)
+                message("Resample with k1 = ", k1)
             if (k1 == 1)
                 tempData1 <- tempData
             else
