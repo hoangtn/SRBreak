@@ -123,7 +123,8 @@ SRBreak <- function(readDepthWindow = 500,
 
         testOutPairedEnd <- testOut[[kk]]
         ###########Use paired-end approach
-        if (usingPairedEnds == TRUE)
+        if (usingPairedEnds == TRUE){
+            message("You're using paired-end information. It takes longer time to analyse")
             testOutPairedEnd <- detectBreakpointFromPairedEnds(resultFromRD = testOut[[kk]],
                                    dirBamFile = dirBamFile,
                                    windows = objectCNVrd2@windows, chr = objectCNVrd2@chr,
@@ -131,6 +132,7 @@ SRBreak <- function(readDepthWindow = 500,
                                    epsilonPairedOpen = epsilonPairedOpen,
                                    thresholdOfIntersection = thresholdOfIntersectionBetweenRDandPEM,
                                                                printOut = printOut)
+        }
         
 
         ##########Use split-read approach
@@ -200,7 +202,7 @@ SRBreak <- function(readDepthWindow = 500,
     
     
     return(list(svResult = breakpointDataFrame, objectSRBreak = objectCNVrd2,
-           polymorphicRegionObject = polymorphicRegion))
+           polymorphicRegionObject = polymorphicRegion, resultSegment = resultSegment))
 
 
 }
