@@ -926,7 +926,10 @@ detectBreakPointFromRD <- function(polymorphicObject,
             if (printOut)
                 message("Using Mclust to cluster for one-dimension data")
 
-                 classM <-  mclust::Mclust(subSD2)$classification
+            if (sd(subSD2) < 0.01)
+                classM <- rep(1, length(subSD2))
+            else
+                classM <-  mclust::Mclust(subSD2)$classification
              
             
         } else {
