@@ -4,8 +4,8 @@ calculateVst <- function(data, popName, regions = NULL){
     ##popName is a data.frame including two columns: sample names and their corresponding populations
 
     
-    
-    popName <- popName[pmatch(rownames(data), popName[, 1]), ]
+    popName <- popName[pmatch(popName[, 1], rownames(data)), ]
+
     ###Calculate number of populations
     nPops <- length(table(popName[, 2]))
  
