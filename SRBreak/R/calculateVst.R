@@ -1,0 +1,50 @@
+calculateVst <- function(data, popName, regions = NULL){
+
+    ##data is a data.frame/matrix of segmentation results
+    ##popName is a data.frame including two columns: sample names and their corresponding populations
+
+    
+    popName <- popName[pmatch(popName[, 1], rownames(data)), ]
+
+    ###Calculate number of populations
+    nPops <- length(table(popName[, 2]))
+ 
+
+    Vst <- apply(data, 2, function(x){
+          bTemp <- data.frame(data = x,
+                              pop = as.character(popName[, 2])) ##Combine a column and population information
+          
+          nameValueVST <- c()
+          vResults <- c()
+          indexVST = 1 ##Set index for the first pair
+
+          for (iST in 1:(nPops-1)){ #iST for the first pop
+              for (jST in (iST+1):nPops){ #jST for the second pop
+                  bTempIJ <- bTemp[(bTemp[, 2] == popNames[iST]) |
+                             (bTemp[, 2] == popNames[jST]), ] #Extract the two pops
+                  bVT <- sd(bTempIJ[, 1]) #Total variance across individuals across two populations
+
+                  bVSTtemp <- sapply(split(bTempIJ, bTempIJ$pop), function(x) sd(x[, 1])) ##Calculate each variance of each pop
+
+                  bVSTtemp <- data.frame(bVSTtemp, table(popAll)) ##Combine variances and pops
+                  bVSTtemp <- bVSTtemp[!is.na(bVSTtemp[, 1]), ] ##Remove NA
+
+
+                  bVS <- sum(bVSTtemp[, 1]*bVSTtemp[, 3])/sum(bVSTtemp[, 3]) ##Calcualte the average within-population variance Vs = (V1*n1 + V2*n2)/(n1 + n2)
+                  vResults[indexVST] <- (bVT - bVS)/bVT ##Vst = (Vt - Vs)/Vt
+
+                  nameValueVST[indexVST] <- paste(popNames[iST], "-", popNames[jST], sep = "")
+                  indexVST <- indexVST + 1
+              }}
+          names(vResults) <- nameValueVST
+
+          return(vResults)
+          })
+
+    if (!is.null(regions)){
+        Vst <- data.frame(regions, Vst)
+        colnames(Vst) <- c("Start", "End", "Vst")
+    }
+    
+    return(Vst = Vst)
+}
