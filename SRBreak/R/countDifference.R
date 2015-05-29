@@ -13,7 +13,7 @@ countDifference <- function(data, popName, regions = NULL,
     nPops <- length(table(popName[, 2]))
  
 
-    Vst <- apply(data, 2, function(x){
+    difCount <- apply(data, 2, function(x){
 
         x <- ifelse((x > lowerThreshold) & (x < upperThreshold), 0, 1)
                  
@@ -44,9 +44,9 @@ countDifference <- function(data, popName, regions = NULL,
           })
 
     if (!is.null(regions)){
-        Vst <- data.frame(regions, Vst)
-        colnames(Vst) <- c("Start", "End", "Vst")
+        difCount <- data.frame(regions, difCount)
+        colnames(difCount) <- c("Start", "End", "Count")
     }
     
-    return(Vst = Vst)
+    return(difCount = difCount)
 }
