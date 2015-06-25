@@ -12,6 +12,7 @@ SRBreak <- function(readDepthWindow = 500,
 
                     splitreadMappingQuality = 0, epsilonSplitReadOpen = 2*readDepthWindow,
                     sdSplitRead = 0.5, usingPairedEnds = TRUE,
+                    singleSample = FALSE,
                     nIncreaseSampleSize = NULL , minLengthSV = 5000,
                     inputRawReadCountMatrix = NULL,
                     epsilonCovDET = -1,
@@ -60,12 +61,22 @@ SRBreak <- function(readDepthWindow = 500,
     if (!is.null(nIncreaseSampleSize)){
         tempNameSample <- rownames(rawcntMatrix01)
 
-        
 
-        newMatrixSample <- matrix(rep(rawcntMatrix01[1, ], nIncreaseSampleSize), ncol = length(rawcntMatrix01[1, ]), byrow = TRUE)
-        
-        rownames(newMatrixSample) <- paste(tempNameSample, 1:nIncreaseSampleSize, sep = "_")
+        newMatrixSample <- rawcntMatrix01
 
+        for (ij1 in 2:nIncreaseSampleSize){
+            tempRowSample <- rawcntMatrix01[1, ] + rnorm(length(rawcntMatrix01[1, ]), 0, 0.001)
+            newMatrixSample <- rbind(newMatrixSample, tempRowSample)
+
+            file.copy(from = paste(dirBamFile, tempNameSample, sep = ""), to = paste(dirBamFile, tempNameSample, ".", ij1,  "bam", sep = ""))
+            file.copy(from = paste(dirBamFile, tempNameSample, ".bai", sep = ""), to = paste(dirBamFile, tempNameSample, ".", ij1, "bam.bai", sep = ""))
+        }
+
+        
+        rownames(newMatrixSample) <- paste(tempNameSample, ".", 1:nIncreaseSampleSize, "bam", sep = "")
+        rownames(newMatrixSample)[1] <- tempNameSample
+
+        
         rawcntMatrix01 <- newMatrixSample
 
     }
@@ -111,7 +122,8 @@ SRBreak <- function(readDepthWindow = 500,
                                       epsilonCovDET = epsilonCovDET,
                                       NTimesThreshold = NTimesThreshold,
                                       NtransferToOtherPackage = NtransferToOtherPackage,
-                                      printOut = printOut)
+                                      printOut = printOut,
+                                      singleSample = singleSample)
 
 ############################################################################################
 ############################################################################################
@@ -199,7 +211,23 @@ SRBreak <- function(readDepthWindow = 500,
 
     breakpointDataFrame <- breakpointDataFrame[(as.numeric(breakpointDataFrame[, 3]) - as.numeric(breakpointDataFrame[, 2])) >= minLengthSV,]
 
+
+    ##################Remove files#################################################
+
+    ###############################################################################
+    if (!is.null(nIncreaseSampleSize)){
     
+        for (ij1 in 2:nIncreaseSampleSize){
+     
+            file.remove(paste(dirBamFile, tempNameSample, ".", ij1,  "bam", sep = ""))
+            file.remove(paste(dirBamFile, tempNameSample, ".", ij1, "bam.bai", sep = ""))
+        }
+
+        breakpointDataFrame <- breakpointDataFrame[, c(1, 2, 3, 4)]
+    }
+
+############################################################################################
+    ################################################################################
     
     return(list(svResult = breakpointDataFrame, objectSRBreak = objectCNVrd2,
            polymorphicRegionObject = polymorphicRegion, resultSegment = resultSegment))
@@ -827,7 +855,7 @@ detectBreakPointFromRD <- function(polymorphicObject,
                                    useMixtureModel2ClusterGroup = FALSE, minLengthSV = 5000,
                                    epsilonCovDET = 0,
                                    NTimesThreshold = 20, NtransferToOtherPackage = 10,
-                                   printOut = FALSE){
+                                   printOut = FALSE, singleSample = FALSE){
 
     testType <- match.arg(testType)
 
@@ -934,6 +962,10 @@ detectBreakPointFromRD <- function(polymorphicObject,
             
         } else {
 
+            if (singleSample)
+                classM <- rep(1, length(subSD2[, 1]))
+            else {
+
                 if (max(dim(subSD2)) < NtransferToOtherPackage){
                     if (printOut)
                     message("Using Mclust to cluster for multi-dimension data")
@@ -945,6 +977,7 @@ detectBreakPointFromRD <- function(polymorphicObject,
                     classM <- HDclassif::hddc(subSD2)$class
                 }
 
+            }
             
                 
         }
