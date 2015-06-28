@@ -1,6 +1,6 @@
 SRBreak <- function(readDepthWindow = 500,
                     chr = NULL, st  = NULL, en = NULL,
-                    dirBamFile = NULL, genes = NULL, geneNames = NULL,
+                    dirBamFile = NULL, genes = NULL, geneNames = NULL, dirCoordinate = NULL,
                     rdQualityMapping = 0, correctGC = TRUE, byGCcontent= 1, useRSamtoolsToCount = FALSE,
                     byMAPPABILITYcontent = 1, mappabilityFile = NULL, useMixtureModel2ClusterGroup = FALSE,
 
@@ -34,6 +34,7 @@ SRBreak <- function(readDepthWindow = 500,
    
     objectCNVrd2 <- new("CNVrd2", windows = readDepthWindow, chr = chr,
                         st = st, en = en, dirBamFile = dirBamFile,
+                        dirCoordinate = dirCoordinate,
                         genes = genes, geneNames = geneNames)
 
 
