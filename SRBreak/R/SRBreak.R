@@ -31,7 +31,15 @@ SRBreak <- function(readDepthWindow = 500,
     if (is.null(geneNames))
         geneNames <- "gene"
     
-   
+
+    if (is.null(dirCoordinate)){
+        dirCoordinate <- "TempAll"
+        warning("No input for dirCoordinate")
+    }
+    if (is.null(dirBamFile)){
+        dirBamFile <- "."
+        warning("No input for dirBamFile")
+    }
     objectCNVrd2 <- new("CNVrd2", windows = readDepthWindow, chr = chr,
                         st = st, en = en, dirBamFile = dirBamFile,
                         dirCoordinate = dirCoordinate,
