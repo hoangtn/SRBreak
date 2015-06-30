@@ -40,6 +40,8 @@ SRBreak <- function(readDepthWindow = 500,
         dirBamFile <- "."
         warning("No input for dirBamFile")
     }
+
+    dir.create(dirCoordinate)
     objectCNVrd2 <- new("CNVrd2", windows = readDepthWindow, chr = chr,
                         st = st, en = en, dirBamFile = dirBamFile,
                         dirCoordinate = dirCoordinate,
