@@ -18,7 +18,7 @@ SRBreak <- function(readDepthWindow = 500,
                     epsilonCovDET = -1,
                     NTimesThreshold = 20,
                     NtransferToOtherPackage = 20000,
-                    reference_fasta = NULL, printOut = FALSE){
+                    reference_fasta = NULL, printOut = FALSE, nCore = 1){
 
 
 #####################RD approach###########################################################
@@ -55,7 +55,7 @@ SRBreak <- function(readDepthWindow = 500,
     rawcntMatrix0 <- CNVrd2::countReadInWindow(Object = objectCNVrd2,
                                        rawReadCount = TRUE, qualityThreshold = rdQualityMapping,
                                        correctGC = correctGC, byGCcontent= byGCcontent,
-                                       useRSamtoolsToCount = useRSamtoolsToCount, reference_fasta = reference_fasta)
+                                       useRSamtoolsToCount = useRSamtoolsToCount, reference_fasta = reference_fasta, nCore = nCore)
 }
     ############Correct mappability bias
 
@@ -487,7 +487,7 @@ getSplitPositionForGroup <- function(dirBamFile, listFile = NULL, windows = 500,
     
 ##Obtain left positions
             if (dim(leftPos1)[1] > 0){
-                leftPos1 <- as.numeric(as.character(leftPos1[, 1])) + as.numeric(as.character(leftPos1[, 2]))
+                leftPos1 <- as.numeric(as.character(leftPos1[, 1])) + as.numeric(as.character(leftPos1[, 2])) - 1
                 } else leftPos1 <- NULL
 ############################################################
 ############Right positions##################################
@@ -506,7 +506,8 @@ getSplitPositionForGroup <- function(dirBamFile, listFile = NULL, windows = 500,
                
 ##Obtain right positions
             if (dim(rightPos1)[1] > 0) {
-                rightPos1 <- as.numeric(as.character(rightPos1[, 1]))
+                rightPos1 <- as.numeric(as.character(rightPos1[, 1])) - 1
+                
                 } else rightPos1 <- NULL
             }}
 
