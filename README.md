@@ -1,6 +1,6 @@
 # SRBreak.
 
-SRBreak is a split-read and read-depth package written in R for identifying copy-number variants 
+SRBreak is a split-read algorithm written in R for identifying copy-number variants 
 in next-generation sequencing datasets.
 
 ## Installation
