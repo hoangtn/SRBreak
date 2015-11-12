@@ -1,7 +1,20 @@
-Please read the file [TestSRBreak.ipynb](./TestSRBreak.ipynb) to see 
-how SRBreak works.
+# SRBreak.
+
+SRBreak is a split-read algorithm written in R for identifying copy-number variants 
+in next-generation sequencing datasets.
+
+## Installation
+  
+
+## Test Run
+
+[TestSRBreak.ipynb](./TestSRBreak.ipynb) explains how to run the package.
+
+## Test Data
 
 Download the test data from: https://github.com/hoangtn/DataFile
+
+## Docker
 
 If you want to use a dockerized version, please download the image hoangtn/srbreak:
 
