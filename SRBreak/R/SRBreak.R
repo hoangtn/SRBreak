@@ -1,5 +1,5 @@
 SRBreak <- function(readDepthWindow = 500,
-                    chr = NULL, st  = NULL, en = NULL,
+                    chr = NULL, st  = NULL, en = NULL, chrNameForSplitRead = NULL,
                     dirBamFile = NULL, genes = NULL, geneNames = NULL, dirCoordinate = NULL,
                     rdQualityMapping = 0, correctGC = TRUE, byGCcontent= 1, useRSamtoolsToCount = FALSE,
                     byMAPPABILITYcontent = 1, mappabilityFile = NULL, useMixtureModel2ClusterGroup = FALSE,
@@ -167,7 +167,8 @@ SRBreak <- function(readDepthWindow = 500,
                                    windows = objectCNVrd2@windows, chr = objectCNVrd2@chr,
                                    qualityThreshold = splitreadMappingQuality,
                                    epsilonOpen = epsilonSplitReadOpen,
-                                   sdSplitRead = sdSplitRead, usingPairedEnds = usingPairedEnds)
+                                   sdSplitRead = sdSplitRead, usingPairedEnds = usingPairedEnds,
+					chrNameForSplitRead = chrNameForSplitRead)
 
         #############Combine all outputs
         reportOutData <- rbind(reportOutData, finalOutAll)
@@ -256,7 +257,8 @@ getSplitReadBreakpoint <- function(resultFromRD = NULL,
                                    qualityThreshold = 0,
                                    epsilonOpen = NULL,
                                    sdSplitRead = 0.5,
-                                   usingPairedEnds = TRUE){
+                                   usingPairedEnds = TRUE,
+					chrNameForSplitRead = NULL){
     if (is.na(dirBamFile))
         dirBamFile <- "./"
     if (substr(dirBamFile, length(dirBamFile), 1) != "/")
@@ -309,7 +311,8 @@ getSplitReadBreakpoint <- function(resultFromRD = NULL,
                                               medRight = SubgroupTableFromRD[, 3][1],
                                               sdSplitRead = 0.5,
                                               epsilonOpen = epsilonOpen,
-                                              usingPairedEnds = usingPairedEnds)
+                                              usingPairedEnds = usingPairedEnds,
+						chrNameForSplitRead = chrNameForSplitRead)
         
         tempDataFrameOut <- rbind(tempDataFrameOut, data.frame(SubgroupTableFromRD,
                                                                rep(tempSplitOut$splitBreak[1],
@@ -336,7 +339,8 @@ getSplitScoreForGroup <- function(dirBamFile, listFile = NULL,
                                   qualityThreshold = 0,
                                   epsilonOpen = NULL,
                                   sdSplitRead = 0.5,
-                                  usingPairedEnds = TRUE){
+                                  usingPairedEnds = TRUE,
+				chrNameForSplitRead = NULL){
     if (is.na(dirBamFile))
         dirBamFile <- "./"
     if (substr(dirBamFile, length(dirBamFile), 1) != "/")
@@ -365,7 +369,8 @@ getSplitScoreForGroup <- function(dirBamFile, listFile = NULL,
                                                  windows = windows,
                                                  qualityThreshold = qualityThreshold,
                                                  epsilonOpen = epsilonOpen,
-                                                 usingPairedEnds = usingPairedEnds)
+                                                 usingPairedEnds = usingPairedEnds,
+						chrNameForSplitRead = chrNameForSplitRead)
     leftScore <- rightScore <- NULL
     leftPos <- outSplitPosition$tempLeft
     rightPos <- outSplitPosition$tempRight
@@ -416,7 +421,7 @@ getSplitScoreForGroup <- function(dirBamFile, listFile = NULL,
 
 getSplitPositionForGroup <- function(dirBamFile, listFile = NULL, windows = 500, chr = NULL, medLeft = NULL,
                                      medRight = NULL, qualityThreshold = 0, epsilonOpen = NULL,
-                                     usingPairedEnds = TRUE){
+                                     usingPairedEnds = TRUE, chrNameForSplitRead = NULL){
     if (is.na(dirBamFile))
         dirBamFile <- "./"
     if (substr(dirBamFile, length(dirBamFile), 1) != "/")
@@ -435,6 +440,10 @@ getSplitPositionForGroup <- function(dirBamFile, listFile = NULL, windows = 500,
         epsilonOpen <- 2*windows
     
     chr <- gsub("chr", "", chr)
+
+   if (!is.null(chrNameForSplitRead))
+     chr <- chrNameForSplitRead
+	
 
     what <- c("pos", "cigar", "mapq")
     
@@ -538,7 +547,7 @@ detectBreakpointFromPairedEnds <- function(resultFromRD = NULL,
                                    epsilonPairedOpen = NULL,
                                            thresholdOfIntersection = 0.9,
                                            insertSize = 500, readLength = 100,
-                                           printOut = FALSE){
+                                           printOut = FALSE, chrNameForSplitRead = NULL){
 
     if (printOut)
         message("Using paired-end information")
@@ -589,7 +598,8 @@ detectBreakpointFromPairedEnds <- function(resultFromRD = NULL,
                                               medLeft =  SubgroupTableFromRD[, 2][1],
                                               medRight = SubgroupTableFromRD[, 3][1],
                                               thresholdOfIntersection = thresholdOfIntersection,
-                                              typeSV = toupper(as.character(SubgroupTableFromRD[, 5])[1]))
+                                              typeSV = toupper(as.character(SubgroupTableFromRD[, 5])[1]),
+						chrNameForSplitRead = chrNameForSplitRead)
 
 
         SubgroupTableFromRD$Start <- tempPairedEndOut[1]
@@ -654,7 +664,7 @@ detectBreakpointFromPairedEnds <- function(resultFromRD = NULL,
 getPairedEndPositionForGroup <- function(dirBamFile, listFile = NULL, windows = 500, chr = NULL,
                                          medLeft = NULL, medRight = NULL, qualityThreshold = 0,
                                          epsilonPairedOpen = NULL, thresholdOfIntersection = 0.9,
-                                         typeSV = "DEL"){
+                                         typeSV = "DEL", chrNameForSplitRead = NULL){
     if (is.na(dirBamFile))
         dirBamFile <- "./"
     if (substr(dirBamFile, length(dirBamFile), 1) != "/")
@@ -675,7 +685,8 @@ getPairedEndPositionForGroup <- function(dirBamFile, listFile = NULL, windows = 
     chr <- gsub("chr", "", chr)
 
     what <- c("pos", "mpos", "mapq")
-    
+    if (!is.null(chrNameForSplitRead))
+	chr <- chrNameForSplitRead    
 
     which <- IRanges::RangesList('2' = IRanges(medLeft - epsilonPairedOpen, medLeft + epsilonPairedOpen))
     names(which) <- as.character(as.name(chr))
