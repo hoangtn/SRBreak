@@ -18,6 +18,7 @@ SRBreak <- function(readDepthWindow = 500,
                     epsilonCovDET = -1,
                     NTimesThreshold = 20,
                     NtransferToOtherPackage = 20000,
+			referenceGenome = "BSgenome.Hsapiens.UCSC.hg19",
                     reference_fasta = NULL, printOut = FALSE, nCore = 1){
 
 
@@ -55,7 +56,9 @@ SRBreak <- function(readDepthWindow = 500,
     rawcntMatrix0 <- CNVrd2::countReadInWindow(Object = objectCNVrd2,
                                        rawReadCount = TRUE, qualityThreshold = rdQualityMapping,
                                        correctGC = correctGC, byGCcontent= byGCcontent,
-                                       useRSamtoolsToCount = useRSamtoolsToCount, reference_fasta = reference_fasta, nCore = nCore)
+                                       useRSamtoolsToCount = useRSamtoolsToCount, 
+					referenceGenome = referenceGenome,
+					reference_fasta = reference_fasta, nCore = nCore)
 }
     ############Correct mappability bias
 
