@@ -19,7 +19,10 @@ SRBreak <- function(readDepthWindow = 500,
                     NTimesThreshold = 20,
                     NtransferToOtherPackage = 20000,
 			referenceGenome = "BSgenome.Hsapiens.UCSC.hg19",
-                    reference_fasta = NULL, printOut = FALSE, nCore = 1){
+                    reference_fasta = NULL,
+                    printOut = FALSE, gcSmallThreshold = 0.001, nCore = 1,
+                    segmentalDuplicationFile = NULL, adjustStartPosition = FALSE
+                    ){
 
 
 #####################RD approach###########################################################
@@ -48,6 +51,73 @@ SRBreak <- function(readDepthWindow = 500,
                         dirCoordinate = dirCoordinate,
                         genes = genes, geneNames = geneNames)
 
+        #############################Obtain regions with no GC bases
+      chr <- as.character(chr)
+
+    if(is.null(reference_fasta)){
+
+          st1 <- seq(st, en, by = windows)
+                        
+                        if (max(st1) < en)
+                          st1 <- c(st1, en)
+                        st1[-c(1, length(st1))] <- st1[-c(1, length(st1))] - 1
+                        
+                        gr1 <- GRanges(chr, IRanges(start = st1[-length(st1)], end = st1[-1]))
+                        system.time(b1 <- getSeq(Hsapiens, gr1)) 
+                        
+                        gcContentInSegment <- apply(letterFrequency(b1, letters = c("G", "C")), 1, sum)
+                        
+                        gcContentInSegment <- ifelse(is.na(gcContentInSegment), 0, gcContentInSegment)
+                        
+                      } else{
+                          names(referenceGenome) <- toupper(names(referenceGenome))
+
+                          message("names(referenceGenome) ")
+                          print(names(referenceGenome))
+                          
+                          positionChr <- grep(toupper(chr), names(referenceGenome))[1]
+
+                          message("position: ")
+                          print(positionChr)
+                          tempG <- referenceGenome[positionChr]
+                          
+                          st1 <- seq(st, en, by = windows)
+                          
+                          if (max(st1) < en)
+                            st1 <- c(st1, en)
+                          st1[-c(1, length(st1))] <- st1[-c(1, length(st1))] - 1
+                          
+                          gr1 <- GRanges(chr, IRanges(start = st1[-length(st1)], end = st1[-1]))
+                          system.time(b1 <- getSeq(tempG, gr1)) 
+                          
+                          gcContentInSegment <- apply(letterFrequency(b1, letters = c("G", "C")), 1, sum)
+                          
+                          gcContentInSegment <- ifelse(is.na(gcContentInSegment), 0, gcContentInSegment)
+                          
+                          
+                          
+    }
+    gcContentInSegment <- gcContentInSegment/windows
+    bZero <- which(gcContentInSegment < gcSmallThreshold )
+
+    gr0 <- IRanges(start = st1[-length(st1)], end = st1[-1])
+    gr2 <- gr0[bZero, ]
+    grZeroOut <- reduce(gr2)
+
+    newST1 <- start(grZeroOut)[1]
+    newST2 <- end(grZeroOut)[1]
+    rm(gr0)
+    rm(gr2)
+    rm(bZero)
+    rm(gcContentInSegment)
+
+    if (adjustStartPosition){
+    if ((newST1 <= objectCNVrd2@st) & (newST2 >= objectCNVrd2@st)) {
+        objectCNVrd2@st <- newST2
+        message("Start position is changed to: ", newST2)
+    }
+    }
+
 
     #############Use CNVrd2 to count read
     if (!is.null(inputRawReadCountMatrix)){
@@ -71,7 +141,7 @@ SRBreak <- function(readDepthWindow = 500,
 
 
     #######For single sample, this step is aimed to make a pseu-do matrix of multiple samples (not good)
-    
+   
     if (!is.null(nIncreaseSampleSize)){
         tempNameSample <- rownames(rawcntMatrix01)
 
@@ -94,6 +164,8 @@ SRBreak <- function(readDepthWindow = 500,
         rawcntMatrix01 <- newMatrixSample
 
     }
+
+
 
 
 
@@ -243,6 +315,25 @@ SRBreak <- function(readDepthWindow = 500,
 
 ############################################################################################
     ################################################################################
+    ###Add segmental Duplication information
+    outputCor <- IRanges(as.integer(breakpointDataFrame[, 2]), as.integer(breakpointDataFrame[, 3]))
+    indexOut <- outputCor %outside% grZeroOut
+    breakpointDataFrame <- breakpointDataFrame[indexOut, ]
+
+    if (!is.null(segmentalDuplicationFile)){
+         dupFile <- read.table(segmentalDuplicationFile)
+         sDupA <- IRanges(as.integer(dupFile[, 2]), as.integer(dupFile[, 3]))
+         sDupA <- reduce(sDupA)
+         print(head(sDupA))
+             outputCor <- IRanges(as.integer(breakpointDataFrame[, 2]), as.integer(breakpointDataFrame[, 3]))
+
+    indexOut <- outputCor %outside% sDupA
+    breakpointDataFrame <- breakpointDataFrame[indexOut, ]
+
+    }
+
+
+
     
     return(list(svResult = breakpointDataFrame, objectSRBreak = objectCNVrd2,
            polymorphicRegionObject = polymorphicRegion, resultSegment = resultSegment))
