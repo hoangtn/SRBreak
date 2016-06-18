@@ -14,6 +14,8 @@ in next-generation sequencing datasets.
 
 Download the test data from: https://github.com/hoangtn/DataFile
 
+## Go to [DATA](./DATA) to reproduce simulated data
+
 ## Docker
 
 If you want to use a dockerized version, please download the image hoangtn/srbreak:
