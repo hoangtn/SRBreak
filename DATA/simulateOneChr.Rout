@@ -1,0 +1,85 @@
+
+R version 3.2.2 (2015-08-14) -- "Fire Safety"
+Copyright (C) 2015 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> library("BSgenome.Hsapiens.UCSC.hg19")
+Loading required package: BSgenome
+Loading required package: BiocGenerics
+Loading required package: parallel
+
+Attaching package: ‘BiocGenerics’
+
+The following objects are masked from ‘package:parallel’:
+
+    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+    clusterExport, clusterMap, parApply, parCapply, parLapply,
+    parLapplyLB, parRapply, parSapply, parSapplyLB
+
+The following object is masked from ‘package:stats’:
+
+    xtabs
+
+The following objects are masked from ‘package:base’:
+
+    anyDuplicated, append, as.data.frame, as.vector, cbind, colnames,
+    do.call, duplicated, eval, evalq, Filter, Find, get, intersect,
+    is.unsorted, lapply, Map, mapply, match, mget, order, paste, pmax,
+    pmax.int, pmin, pmin.int, Position, rank, rbind, Reduce, rep.int,
+    rownames, sapply, setdiff, sort, table, tapply, union, unique,
+    unlist, unsplit
+
+Loading required package: S4Vectors
+Loading required package: stats4
+Creating a generic function for ‘nchar’ from package ‘base’ in package ‘S4Vectors’
+Loading required package: IRanges
+Loading required package: GenomeInfoDb
+Loading required package: GenomicRanges
+Loading required package: Biostrings
+Loading required package: XVector
+Loading required package: rtracklayer
+> ###Extract the chromosome 21
+> chr <- "chr21"
+> tempChr <- unmasked(Hsapiens[[chr]])
+> 
+> ##Read structural-variant (SV) file
+> inputList <- read.table("ListSVofChr21ForsimulateOneChrFile.txt", header = FALSE)
+> 
+> ##Extract start and end positions of SV regions
+> startP <- inputList[, 1]
+> endP <- inputList[, 2]
+> 
+> ##Convert to start and end segments to extract from Chr 21
+> endPosition <- c(startP, length(tempChr))
+> startPosition <- c(1, as.numeric(endP))
+> outChr <- NULL
+> for (ii in 1:length(startPosition)){
++ 
++     outChr <- c(outChr, tempChr[startPosition[ii]:endPosition[ii]])
++ 
++ }
+> 
+> finalChr <- do.call(c, outChr)
+> ff <- file(paste("Chr21.simulateDeletionsFrom1000Genomes.fa", sep = ""), "w")
+> write('>chr21_Del', ff)
+> writeLines(paste(finalChr), ff)
+> close(ff)
+> 
+> 
+> proc.time()
+   user  system elapsed 
+ 11.348   1.280  14.931 
