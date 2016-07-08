@@ -17,11 +17,13 @@ SRBreak <- function(readDepthWindow = 500,
                     inputRawReadCountMatrix = NULL,
                     epsilonCovDET = -1,
                     NTimesThreshold = 20,
-                    NtransferToOtherPackage = 20000,
+                    NtransferToOtherPackage = 20000, modelNames = "EII",
 			referenceGenome = "BSgenome.Hsapiens.UCSC.hg19",
                     reference_fasta = NULL,
                     printOut = FALSE, gcSmallThreshold = 0.001, nCore = 1,
-                    segmentalDuplicationFile = NULL, adjustStartPosition = FALSE
+                    nRDResample = NULL, ##Number of resampling, should not > 5 if sample size is large (e.g., > 50)
+                    segmentalDuplicationFile = NULL, adjustStartPosition = FALSE, readLength = 100, outerDistance = 500,
+                    simpleScoreForRD = NULL
                     ){
 
 
@@ -196,6 +198,7 @@ SRBreak <- function(readDepthWindow = 500,
                                       genes = objectCNVrd2@genes,
                                       windows = objectCNVrd2@windows,
                                       detectAllRegion = detectAllRegion,
+                                      modelNames = modelNames,
                                       quantileThreshold =  quantileThresholdOfSD,
                                       upperCNThreshold = upperCNThreshold,
 
@@ -209,7 +212,8 @@ SRBreak <- function(readDepthWindow = 500,
                                       NTimesThreshold = NTimesThreshold,
                                       NtransferToOtherPackage = NtransferToOtherPackage,
                                       printOut = printOut,
-                                      singleSample = singleSample)
+                                      singleSample = singleSample, nRDResample = nRDResample,
+				simpleScoreForRD = simpleScoreForRD)
 
 ############################################################################################
 ############################################################################################
@@ -229,7 +233,8 @@ SRBreak <- function(readDepthWindow = 500,
                                    qualityThreshold = pemMappingQuality,
                                    epsilonPairedOpen = epsilonPairedOpen,
                                    thresholdOfIntersection = thresholdOfIntersectionBetweenRDandPEM,
-                                                               printOut = printOut)
+                                                               printOut = printOut, readLength = readLength,
+                                   outerDistance = outerDistance)
         }
         
 
@@ -638,6 +643,7 @@ detectBreakpointFromPairedEnds <- function(resultFromRD = NULL,
                                    epsilonPairedOpen = NULL,
                                            thresholdOfIntersection = 0.9,
                                            insertSize = 500, readLength = 100,
+                                   outerDistance = 500,
                                            printOut = FALSE, chrNameForSplitRead = NULL){
 
     if (printOut)
@@ -690,7 +696,8 @@ detectBreakpointFromPairedEnds <- function(resultFromRD = NULL,
                                               medRight = SubgroupTableFromRD[, 3][1],
                                               thresholdOfIntersection = thresholdOfIntersection,
                                               typeSV = toupper(as.character(SubgroupTableFromRD[, 5])[1]),
-						chrNameForSplitRead = chrNameForSplitRead)
+						chrNameForSplitRead = chrNameForSplitRead, readLength = readLength,
+                                              outerDistance = outerDistance)
 
 
         SubgroupTableFromRD$Start <- tempPairedEndOut[1]
@@ -755,7 +762,8 @@ detectBreakpointFromPairedEnds <- function(resultFromRD = NULL,
 getPairedEndPositionForGroup <- function(dirBamFile, listFile = NULL, windows = 500, chr = NULL,
                                          medLeft = NULL, medRight = NULL, qualityThreshold = 0,
                                          epsilonPairedOpen = NULL, thresholdOfIntersection = 0.9,
-                                         typeSV = "DEL", chrNameForSplitRead = NULL){
+                                         typeSV = "DEL", chrNameForSplitRead = NULL, readLength = 100,
+                                         outerDistance = 500){
     if (is.na(dirBamFile))
         dirBamFile <- "./"
     if (substr(dirBamFile, length(dirBamFile), 1) != "/")
@@ -801,7 +809,8 @@ getPairedEndPositionForGroup <- function(dirBamFile, listFile = NULL, windows = 
         allPos <- allPos[allPos[, 2] > allPos[, 1],]
     else
         allPos <- allPos[allPos[, 2] < allPos[, 1],]
-    
+
+    allPos[, 1] <- as.numeric(allPos[, 1]) + readLength
     allPos <- apply(allPos,1, function(x) {
         if (x[2] < x[1]){
             xT <- x[1]
@@ -810,15 +819,19 @@ getPairedEndPositionForGroup <- function(dirBamFile, listFile = NULL, windows = 
         return(x)})
 
     allPos <- t(allPos)
-    tempTest <- IRanges::IRanges(medLeft, medRight)
+    tempTest <- IRanges::IRanges(medLeft, medRight) ##From read-depth approach
     tempTestPosition <- apply(allPos, 1, function(x){
         returnValue <- FALSE
         
-        t10 <- IRanges::IRanges(x[1], x[2])
+        t10 <- IRanges::IRanges(x[1], x[2]) ##Pair-end positions
         t1 <- IRanges::reduce(IRanges::intersect(t10, tempTest))
         if (length(t1) > 0){
-            testT1 <- width(t1)/width(tempTest)
-            testT2 <- width(t1)/width(t10)
+            if (typeSV == "DEL")
+                pairDistance <- width(t10) - (outerDistance - 2*readLength)
+            if (typeSV == "DUP")
+                pairDistance <- width(t10) + (outerDistance - 2*readLength)
+            testT1 <- pairDistance/width(tempTest) #width(t1)/width(tempTest)
+            testT2 <- width(tempTest)/pairDistance #width(t1)/width(t10)
 
             returnValue <- (testT1 >= thresholdOfIntersection) & (testT2 >= thresholdOfIntersection)
         }
@@ -853,11 +866,12 @@ getPairedEndPositionForGroup <- function(dirBamFile, listFile = NULL, windows = 
 ###############NEW FUNCTION#################
 ############################################################################
 ############################NEW FUNCTION###################################        
-rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM,
+rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM, nRDResample = NULL,
                                         upperCNThreshold = 0.4,
                                         lowerCNThreshold = -0.4,
                                         windows = 500,
-                                        sigMaTemp = windows/3, useMixtureModel2ClusterGroup = FALSE){
+                                        sigMaTemp = windows/3, useMixtureModel2ClusterGroup = FALSE,
+                                        simpleScoreForRD = NULL){
     outData <- NULL
 
     for (ii in 1:length(table(classM))){
@@ -878,9 +892,12 @@ rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM,
         tempScore <- NULL
         ###Table random sample
         nSample <- dim(tempData)[1]
+        nSampleTimes <- nSample
+        if (!is.null(nRDResample))
+            nSampleTimes <- nRDResample
         tempTakeScore <- matrix(0, ncol = 2, nrow = nSample)
 
-        for (k1 in 1:nSample){
+        for (k1 in 1:nSampleTimes){
                     
             tempData1 <- tempData[sample(1:nSample, nSample, replace=TRUE),]
               if (!is.matrix(tempData1))
@@ -891,6 +908,10 @@ rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM,
             names(tempScore) <- tempPos
             for (kk in 1:length(tempPos)){
                 scorePos[kk] <- sum(tempScore*dnorm(x = tempPos, mean = tempPos[kk], sd = sigMaTemp))
+
+                if (!is.null(simpleScoreForRD)){
+                    scorePos[kk] <- tempScore[kk]
+                }
 
                 }
             names(scorePos) <- tempPos
@@ -958,11 +979,12 @@ colnames(outData) <- c("Name", "Start", "End", "Score", "Status")
 #############################NEW FUNCTION###########################
 ####################################################################
 
-detectBreakPointFromRD <- function(polymorphicObject,
+detectBreakPointFromRD <- function(polymorphicObject, nRDResample = NULL,
                                    windows = 500, 
                                    genes, 
                                    quantileThreshold = 0.85,
                                    countThreshold = 5,
+                                   modelNames = "EII",
                                    sigMaTemp = windows/3,
                                    upperCNThreshold = 0.4,
                                    lowerCNThreshold = -0.4,
@@ -972,7 +994,7 @@ detectBreakPointFromRD <- function(polymorphicObject,
                                    useMixtureModel2ClusterGroup = FALSE, minLengthSV = 5000,
                                    epsilonCovDET = 0,
                                    NTimesThreshold = 20, NtransferToOtherPackage = 10,
-                                   printOut = FALSE, singleSample = FALSE){
+                                   printOut = FALSE, singleSample = FALSE, simpleScoreForRD = NULL){
 
     testType <- match.arg(testType)
 
@@ -1087,7 +1109,7 @@ detectBreakPointFromRD <- function(polymorphicObject,
                     if (printOut)
                     message("Using Mclust to cluster for multi-dimension data")
                     
-                    classM <-  mclust::Mclust(subSD2, modelNames="EII")$classification
+                    classM <-  mclust::Mclust(subSD2, modelNames= modelNames)$classification
                 } else {
                     if (printOut)
                     message("Using HDclassif to cluster")
@@ -1153,8 +1175,7 @@ detectBreakPointFromRD <- function(polymorphicObject,
         tempScore <- NULL
         ###Table random sample
         nSample <- dim(tempData)[1]
-        tempTakeScore <- matrix(0, ncol = 2, nrow = nSample)
-
+       
         if (is.null(NTimes))
             NTimes <- nSample
         if (NTimesThreshold > nSample)
@@ -1162,11 +1183,15 @@ detectBreakPointFromRD <- function(polymorphicObject,
 
         if (nSample > 50)
             NTimesThreshold <- 5
+        if (!is.null(nRDResample))
+            NTimesThreshold <- nRDResample
         if (printOut){
             message(paste("\nRunning the resampling process: ", NTimesThreshold, " times\n", sep = ""))
             message(paste("Running the resampling process with nSample =  ", nSample, sep = ""))
         }
 
+
+         tempTakeScore <- matrix(0, ncol = 2, nrow = NTimesThreshold)
 
         for (k1 in 1:NTimesThreshold){
 
@@ -1182,17 +1207,38 @@ detectBreakPointFromRD <- function(polymorphicObject,
                 tempScore[kk] <- sum(abs(tempData1[, kk + 1] - tempData1[, kk]))
                 }
             names(tempScore) <- tempPos
+            if (printOut){
+                message("Score: ")
+                print(tempScore)
+                print(paste0("Score class: ", class(tempScore)))
+            }
+                
             for (kk in 1:length(tempPos)){
                 scorePos[kk] <- sum(tempScore*dnorm(x = tempPos, mean = tempPos[kk], sd = sigMaTemp))
+
+                if (!is.null(simpleScoreForRD)){
+                    scorePos[kk] <- tempScore[kk]
+                }
 
                 }
             names(scorePos) <- tempPos
             tempOutScoreAA <- sort(scorePos, decreasing = TRUE)[1:2]
             tempOutScoreAA <- sort(as.numeric(names(tempOutScoreAA)))
 
+            if (printOut){
+            print("tempOutScoreAA: ")
+            print(tempOutScoreAA)
+
+            }
+            
                 tempTakeScore[k1, ] <- tempOutScoreAA
             }
 
+        if (printOut){
+            print("tempTakeScore: ")
+            print(tempTakeScore)
+        }
+            
         
         if (is.matrix(tempTakeScore) | is.data.frame(tempTakeScore))
             tempTakeScore <- tempTakeScore[tempTakeScore[, 1] < tempTakeScore[, 2], ]
@@ -1268,7 +1314,7 @@ colnames(outData) <- c("Name", "Start", "End", "Score", "Status")
 ############################################################################
 ############################################################################
 #######################NEW FUNCTION#########################################        
-rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM,
+rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM, nRDResample = NULL,
                                         upperCNThreshold = 0.4,
                                         lowerCNThreshold = -0.5,
                                         windows = 500,
@@ -1295,9 +1341,14 @@ rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM,
         tempScore <- NULL
         ###Table random sample
         nSample <- dim(tempData)[1]
-        tempTakeScore <- matrix(0, ncol = 2, nrow = nSample)
+        nSampleTimes <- nSample
 
-        for (k1 in 1:nSample){
+        if (!is.null(nRDResample))
+            nSampleTimes <- nRDResample
+        
+        tempTakeScore <- matrix(0, ncol = 2, nrow = nSampleTimes)
+
+        for (k1 in 1:nSampleTimes){
                     
             tempData1 <- tempData[sample(1:nSample, nSample, replace=TRUE),]
               if (!is.matrix(tempData1))
@@ -1309,10 +1360,20 @@ rdIdentifyBreakPointOfGroup <- function(dataMatrix, classM,
             for (kk in 1:length(tempPos)){
                 scorePos[kk] <- sum(tempScore*dnorm(x = tempPos, mean = tempPos[kk], sd = sigMaTemp))
 
+                if (!is.null(simpleScoreForRD)){
+                    scorePos[kk] <- tempScore[kk]
+                }
+
                 }
             names(scorePos) <- tempPos
             tempOutScoreAA <- sort(scorePos, decreasing = TRUE)[1:2]
             tempOutScoreAA <- sort(as.numeric(names(tempOutScoreAA)))
+
+            if (printOut){
+                print(paste0("k1:============== ", k1))
+                print(paste0("dim tempTakeScore: =========", dim(tempTakeScore)))
+            }
+                
             tempTakeScore[k1, ] <- tempOutScoreAA
             }
 
