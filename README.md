@@ -1,10 +1,19 @@
 # SRBreak.
 
-SRBreak is a split-read algorithm written in R for identifying copy-number variants 
+SRBreak is a read-depth and split-read package written in R for identifying copy-number variants 
 in next-generation sequencing datasets.
 
 ## Installation
-  
+
+SRBreak relies on the CNVrd2, therefore please install the package CNVrd2 first:
+
+*git clone https://github.com/hoangtn/CNVrd2.git*
+
+*R CMD INSTALL CNVrd2*  
+
+*git clone https://github.com/hoangtn/SRBreak.git*
+
+*R CMD INSTALL SRBreak*
 
 ## Test Run
 
