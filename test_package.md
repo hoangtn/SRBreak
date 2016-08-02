@@ -78,6 +78,10 @@ rawoutputSV <- outputSRBreak$svResult
 ###Write out
 write.table(rawoutputSV, "SVresults.txt", quote = FALSE)
 
+
+##Next steps are aimed to compare simulated breakpoints and predicted breakpoints
+##We can see all simulated breakpoints by extracting sample names
+
 sampleNames <- dir(dirBamFile, "bam$")
 
 sampleOfSV <- sampleNames[grep("Dup|Del", sampleNames)]
@@ -92,9 +96,10 @@ sort(simulatedSV)
 
 outputSV <- IRanges(as.integer(rawoutputSV[, 2]), as.integer(rawoutputSV[, 3]))
 
-
+###Extract predicted breakpoints around simulated breakpoints
 ###Check whether the simulated breakpoints are in these results 
-outputSV[(start(outputSV) > (101545220 - 5000)) & (end(outputSV) < (101630000 + 5000)) ]
+outputFinal <- outputSV[(start(outputSV) > (101545220 - 5000)) & (end(outputSV) < (101630000 + 5000)) ]
 
+outputFinal
 
 ```

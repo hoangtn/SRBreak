@@ -22,7 +22,7 @@ SRBreak relies on the CNVrd2, therefore please install the package CNVrd2 first:
 
 ### If you want to test the package without installing other packages, a faster way can be seen here:
 
-[test_package.md][./test_package.md)
+[test_package.md](./test_package.md)
 
 
 ## Test Data
