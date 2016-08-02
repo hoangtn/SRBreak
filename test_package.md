@@ -19,6 +19,17 @@ cd ..
 Then, go inside R and install three packages: VariantAnnotation, BSgenome.Hsapiens.UCSC.hg19, mclust
 
 ```{}
+##Install packages
+
+source("https://bioconductor.org/biocLite.R")
+biocLite("VariantAnnotation")
+source("https://bioconductor.org/biocLite.R")
+biocLite("BSgenome.Hsapiens.UCSC.hg19")
+
+install.packages("mclust")
+
+##Load SRBreak source
+
 source("allSourceFile.R")
 windows = 500
 dirBamFile = "DataFile/BamSimulatedData/"
@@ -82,7 +93,7 @@ sort(simulatedSV)
 outputSV <- IRanges(as.integer(rawoutputSV[, 2]), as.integer(rawoutputSV[, 3]))
 
 
-###Check whether the simulated breakpoints are in these results
+###Check whether the simulated breakpoints are in these results 
 outputSV[(start(outputSV) > (101545220 - 5000)) & (end(outputSV) < (101630000 + 5000)) ]
 
 
