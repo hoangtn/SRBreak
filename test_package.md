@@ -8,8 +8,6 @@ git clone https://github.com/hoangtn/CNVrd2.git
 
 git clone https://github.com/hoangtn/SRBreak.git
 
-git clone https://github.com/hoangtn/DataFile.git
-
 
 cd SRBreak/
 cat SRBreak/R/SRBreak.R > ../allSourceFile.R
