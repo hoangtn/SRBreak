@@ -5,7 +5,16 @@ in next-generation sequencing datasets.
 
 ## Installation
 
+Users can run the package by using one of these:
+
+### From source codes: [test_package.md](./test_package.md)
+
+
+### Install as follows
+
 SRBreak relies on the CNVrd2, therefore please install the package CNVrd2 first:
+
+Note: firstly, you need to install jags (http://mcmc-jags.sourceforge.net/), samtools (http://samtools.sourceforge.net/) and then:
 
 *git clone https://github.com/hoangtn/CNVrd2.git*
 
@@ -16,13 +25,6 @@ SRBreak relies on the CNVrd2, therefore please install the package CNVrd2 first:
 *cd SRBreak; R CMD INSTALL SRBreak*
 
 
-## Test Run
-
-[TestSRBreak.ipynb](./TestSRBreak.ipynb) explains how to run the package.
-
-### If you want to test the package without installing other packages, a faster way can be seen here:
-
-[test_package.md](./test_package.md)
 
 
 ## Test Data
