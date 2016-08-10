@@ -15,8 +15,8 @@ cd SRBreak/
 cat SRBreak/R/SRBreak.R > ../allSourceFile.R
 cd ../CNVrd2/
 cat CNVrd2/R/*R >> ../allSourceFile.R 
-sed -i .bak "s/CNVRd2:://g" ../allSourceFile.R 
-rm ../allSourceFile.R.bak
+#sed -i .bak "s/CNVRd2:://g" ../allSourceFile.R 
+#rm ../allSourceFile.R.bak
 cd ..
 
 ```
@@ -53,6 +53,7 @@ source("allSourceFile.R")
 library("VariantAnnotation") 
 library("BSgenome.Hsapiens.UCSC.hg19")
 library("mclust")
+library("Rsamtools")
 
 #link file: https://www.dropbox.com/sh/wejg4r37kdkjokc/AADglfiSzny1bJ4w1ROAVERoa?dl=0
 #
