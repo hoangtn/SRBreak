@@ -15,6 +15,8 @@ cd SRBreak/
 cat SRBreak/R/SRBreak.R > ../allSourceFile.R
 cd ../CNVrd2/
 cat CNVrd2/R/*R >> ../allSourceFile.R 
+sed -i .bak "s/CNVRd2:://g" ../allSourceFile.R 
+rm ../allSourceFile.R.bak
 cd ..
 
 ```
@@ -25,12 +27,9 @@ Then, go inside R and install three packages: Rsamtools, VariantAnnotation, BSge
 ##Install packages
 source("https://bioconductor.org/biocLite.R")
 biocLite("Rsamtools")
-
-source("https://bioconductor.org/biocLite.R")
 biocLite("VariantAnnotation")
-source("https://bioconductor.org/biocLite.R")
 biocLite("BSgenome.Hsapiens.UCSC.hg19")
-
+biocLite("DNAcopy")
 install.packages("mclust")
 ```
 ## Test for whole chromosome chr21
