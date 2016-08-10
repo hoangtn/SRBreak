@@ -5,12 +5,12 @@ in next-generation sequencing datasets.
 
 ## Installation
 
-Users can run the package by using one of these:
+Users can run the package by using one of these two ways:
 
-### From source codes: [test_package.md](./test_package.md)
+### 1. From source codes: [test_package.md](./test_package.md)
 
 
-### Install as follows
+### 2. Install as follows
 
 SRBreak relies on the CNVrd2, therefore please install the package CNVrd2 first:
 
