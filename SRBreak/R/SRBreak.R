@@ -298,10 +298,15 @@ SRBreak <- function(readDepthWindow = 500,
         }}
 
 
+    message("dim breakpointDataFrame: ", dim(breakpointDataFrame))
     if (dim(breakpointDataFrame)[1] > 1)
-        breakpointDataFrame <- breakpointDataFrame[order(breakpointDataFrame[, 2]),]
+        breakpointDataFrame <- breakpointDataFrame[order(breakpointDataFrame[, 2]),, drop = FALSE]
 
-    breakpointDataFrame <- breakpointDataFrame[(as.numeric(breakpointDataFrame[, 3]) - as.numeric(breakpointDataFrame[, 2])) >= minLengthSV,]
+     if (dim(breakpointDataFrame)[1] == 1)
+         breakpointDataFrame <- rbind(breakpointDataFrame)
+
+         
+    breakpointDataFrame <- breakpointDataFrame[(as.numeric(breakpointDataFrame[, 3]) - as.numeric(breakpointDataFrame[, 2])) >= minLengthSV,,drop = FALSE]
 
 
     ##################Remove files#################################################
@@ -315,15 +320,16 @@ SRBreak <- function(readDepthWindow = 500,
             file.remove(paste(dirBamFile, tempNameSample, ".", ij1, "bam.bai", sep = ""))
         }
 
-        breakpointDataFrame <- breakpointDataFrame[, c(1, 2, 3, 4)]
+        breakpointDataFrame <- breakpointDataFrame[, c(1, 2, 3, 4), drop = FALSE]
     }
+
 
 ############################################################################################
     ################################################################################
     ###Add segmental Duplication information
     outputCor <- IRanges(as.integer(breakpointDataFrame[, 2]), as.integer(breakpointDataFrame[, 3]))
     indexOut <- outputCor %outside% grZeroOut
-    breakpointDataFrame <- breakpointDataFrame[indexOut, ]
+    breakpointDataFrame <- breakpointDataFrame[indexOut, , drop = FALSE]
 
     if (!is.null(segmentalDuplicationFile)){
          dupFile <- read.table(segmentalDuplicationFile)
