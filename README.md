@@ -7,7 +7,9 @@ in next-generation sequencing datasets.
 
 If users only have sample from your real data, one possible solution is that users can download some samples from the 1000 Genomes project (known SVs) as reference samples.
 
+The package needs chromosome, start and end positions to run. This information should be in the BAM files of users. 
 
+SRBreak will try to adjust the start position (to remove 'NNN' regions) if the option *adjustStartPosition* is set to TRUE. If just analysing for one specific region, this option should be set to FALSE.  
 
 ### SRBreak only analyses one chromosome. Therefore, if users have multiple chromosomes then he/she should analyse them separately. 
 
