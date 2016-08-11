@@ -5,6 +5,7 @@ in next-generation sequencing datasets.
 
 ### Note: SBReak was designed to work for multiple samples. It can work for >= 2 samples, but we suggest that users should use >= 5 samples as in the work tested in our paper.¶
 
+### SRBreak only analyses one chromosome. Therefore, if users have multiple chromosomes then he/she should analyse them separately. 
 
 ### Segmental duplication information: SRBreak needs this information to refine final results.
 
