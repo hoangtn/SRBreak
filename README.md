@@ -18,7 +18,8 @@ SRBreak will try to adjust the start position (to remove 'NNN' regions) if the o
 Segmental duplication information can be obtained from here: http://humanparalogy.gs.washington.edu/build37/data/GRCh37GenomicSuperDup.tab
 and should be formatted the same as the file [GRCh37GenomicSuperDup.tab.onlyChr21](./GRCh37GenomicSuperDup.tab.onlyChr21) for each chromosome.
 
-Users should follow this example [test_package.md](./test_package.md) to learn more about parameters used inside the package.
+
+Please follow this example [test_package.md](./test_package.md) to learn more about parameters used inside the package.
 
 
 ## Installation

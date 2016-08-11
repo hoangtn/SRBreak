@@ -96,6 +96,7 @@ system.time(outputSRBreak <- SRBreak(readDepthWindow = windows,##read-depth wind
                                      minLengthSV = 1000, ##Minimum length of a duplication/deletion event
 
 #                                     mappabilityFile = "wgEncodeCrgMapabilityAlign100mer.bigWig.Window.500.start.1.end.48129895.txt",
+##Mappability information is not a compulsory option, it should be turned off
                                      usingPairedEnds = FALSE, ##Not use paired-end information,
 
                                      thresholdOfIntersectionBetweenRDandPEM = 0.9 #Not useful if only single-end reads used
