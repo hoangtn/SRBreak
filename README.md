@@ -5,7 +5,10 @@ in next-generation sequencing datasets.
 
 ### Note: SBReak was designed to work for multiple samples. It can work for >= 2 samples, but we suggest that users should use >= 5 samples as in the work tested in our paper.
 
-If users only have one sample from their real data, one possible solution is that users can download some samples from the 1000 Genomes project (known SVs) as reference samples.
+If users only have one sample from their real data, one possible solution is that users can download some samples from the 1000 Genomes project (known SVs) as reference samples. 
+
+(In this example [test_chr21_SRBreak.ipynb](./test_chr21_SRBreak.ipynb), we have also described an example for one sample. However, this option has been fully tested in our current work).
+
 
 The package needs chromosome, start and end positions to run. This information should be in the BAM files of users. 
 
@@ -19,7 +22,7 @@ Segmental duplication information can be obtained from here: http://humanparalog
 and should be formatted the same as the file [GRCh37GenomicSuperDup.tab.onlyChr21](./GRCh37GenomicSuperDup.tab.onlyChr21) for each chromosome.
 
 
-Please follow this example [test_package.md](./test_package.md) to learn more about parameters used inside the package.
+Please follow this example [test_package.md](./test_package.md) and then [test_chr21_SRBreak.ipynb](./test_chr21_SRBreak.ipynb) to learn more about parameters used inside the package.
 
 
 ## Installation
