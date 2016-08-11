@@ -5,7 +5,7 @@ in next-generation sequencing datasets.
 
 ### Note: SBReak was designed to work for multiple samples. It can work for >= 2 samples, but we suggest that users should use >= 5 samples as in the work tested in our paper.
 
-If users only have one sample from your real data, one possible solution is that users can download some samples from the 1000 Genomes project (known SVs) as reference samples.
+If users only have one sample from their real data, one possible solution is that users can download some samples from the 1000 Genomes project (known SVs) as reference samples.
 
 The package needs chromosome, start and end positions to run. This information should be in the BAM files of users. 
 
