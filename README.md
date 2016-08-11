@@ -1,6 +1,6 @@
 # SRBreak.
 
-SRBreak is a read-depth and split-read package written in R for identifying copy-number variants 
+SRBreak is a read-depth and split-read package written in R for identifying copy-number variants
 in next-generation sequencing datasets.
 
 ## Installation
@@ -18,7 +18,7 @@ Note: firstly, you need to install jags (http://mcmc-jags.sourceforge.net/), sam
 
 *git clone https://github.com/hoangtn/CNVrd2.git*
 
-*cd CNVrd2; R CMD INSTALL CNVrd2*  
+*cd CNVrd2; R CMD INSTALL CNVrd2*
 
 *git clone https://github.com/hoangtn/SRBreak.git*
 
@@ -30,6 +30,10 @@ Note: firstly, you need to install jags (http://mcmc-jags.sourceforge.net/), sam
 ## Test Data
 
 Download the test data from: https://github.com/hoangtn/DataFile
+
+### Test directly from source code:  [test_package.md](./test_package.md)
+
+### If you already installed the package, an example can be seen here: [TestSRBreak.ipynb](./TestSRBreak.ipynb)
 
 ## Go to [DATA](./DATA) to reproduce simulated data
 

@@ -4,7 +4,7 @@ Users need to install *samtools* if required.
 
 
 ```{}
-git clone https://github.com/hoangtn/CNVrd2.git 
+git clone https://github.com/hoangtn/CNVrd2.git
 
 git clone https://github.com/hoangtn/SRBreak.git
 
@@ -12,8 +12,8 @@ git clone https://github.com/hoangtn/SRBreak.git
 cd SRBreak/
 cat SRBreak/R/SRBreak.R > ../allSourceFile.R
 cd ../CNVrd2/
-cat CNVrd2/R/*R >> ../allSourceFile.R 
-#sed -i .bak "s/CNVRd2:://g" ../allSourceFile.R 
+cat CNVrd2/R/*R >> ../allSourceFile.R
+#sed -i .bak "s/CNVRd2:://g" ../allSourceFile.R
 #rm ../allSourceFile.R.bak
 cd ..
 
@@ -48,14 +48,14 @@ unzip Chr21BamFile.zip -d Chr21BamFile
 
 source("allSourceFile.R")
 
-library("VariantAnnotation") 
+library("VariantAnnotation")
 library("BSgenome.Hsapiens.UCSC.hg19")
 library("mclust")
 library("Rsamtools")
 
 #link file: https://www.dropbox.com/sh/wejg4r37kdkjokc/AADglfiSzny1bJ4w1ROAVERoa?dl=0
 #
-ePos <- 48129895 ##End position 
+ePos <- 48129895 ##End position
 windows = 500
 
 dirBamFile = "./Chr21BamFile/"
@@ -67,37 +67,37 @@ segmentalDuplicationFile = paste0(dirBamFile, "GRCh37GenomicSuperDup.tab.onlyChr
 st = 9500001
 en = ePos
 st = 9500001 ##Start position; if we don't know, we can set st = 1 and SRBreak can adjust this value inside to remove unknown regions
-chr = "chr21"
+chr = "chr21" ##Note: these bam files are only from chr21
 
 system.time(outputSRBreak <- SRBreak(readDepthWindow = windows,##read-depth window size
-                                     
+
                                      chr = chr, ##Chromosome name
-                                                                                                            
+
                                      st = st, ##Start position
-                                     
+
                                      en = en, ##End position
-                                     
+
                                      dirBamFile = dirBamFile, ##Bam files' directory
-                                     
+
                                      detectAllRegion = TRUE, ##Set this = TRUE in order to obtain all CNV regions
-                                     
+
                                      rdQualityMapping = 0, ##Mapping quality (used in read-depth method)
-                                                             
+
                                      testType = "Count", ##Test type
-                                     
+
                                      correctGC =  TRUE, #   FALSE, ##Correct GC content
-                                     
+
                                      upperCNThreshold = 0.25, ##Larger than this threshold is duplication
-                                     
+
                                      lowerCNThreshold = -0.25, ##Smaller than this threshold is deletion
-                                     
-                                     countThreshold = 2, ##Number of duplications/deletions: should be >= 2 
-                                     
+
+                                     countThreshold = 2, ##Number of duplications/deletions: should be >= 2
+
                                      minLengthSV = 1000, ##Minimum length of a duplication/deletion event
 
 #                                     mappabilityFile = "wgEncodeCrgMapabilityAlign100mer.bigWig.Window.500.start.1.end.48129895.txt",
                                      usingPairedEnds = FALSE, ##Not use paired-end information,
-                                                            
+
                                      thresholdOfIntersectionBetweenRDandPEM = 0.9 #Not useful if only single-end reads used
                                      , segmentalDuplicationFile = segmentalDuplicationFile,
                                      adjustStartPosition = TRUE ##Adjust positions
