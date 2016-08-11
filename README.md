@@ -6,7 +6,7 @@ in next-generation sequencing datasets.
 ### Note: SBReak was designed to work for multiple samples. It can work for >= 2 samples, but we suggest that users should use >= 5 samples as in the work tested in our paper.¶
 
 
-#### Segmental duplication information
+### Segmental duplication information: SRBreak needs this information to refine final results.
 
 Segmental duplication information can be obtained from here: http://humanparalogy.gs.washington.edu/build37/data/GRCh37GenomicSuperDup.tab
 and should be formatted the same as the file [GRCh37GenomicSuperDup.tab.onlyChr21](./GRCh37GenomicSuperDup.tab.onlyChr21) for each chromosome.
