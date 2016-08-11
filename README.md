@@ -3,7 +3,11 @@
 SRBreak is a read-depth and split-read package written in R for identifying copy-number variants
 in next-generation sequencing datasets.
 
-### Note: SBReak was designed to work for multiple samples. It can work for >= 2 samples, but we suggest that users should use >= 5 samples as in the work tested in our paper.¶
+### Note: SBReak was designed to work for multiple samples. It can work for >= 2 samples, but we suggest that users should use >= 5 samples as in the work tested in our paper.
+
+If users only have sample from your real data, one possible solution is that users can download some samples from the 1000 Genomes project (known SVs) as reference samples.
+
+
 
 ### SRBreak only analyses one chromosome. Therefore, if users have multiple chromosomes then he/she should analyse them separately. 
 
