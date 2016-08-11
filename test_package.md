@@ -113,4 +113,4 @@ dim(finalResult)
 
 ```
 
-This file [./test_chr21_SRBreak.ipynb](test_chr21_SRBreak.ipynb) shows results for the test data. The test results include: whole chr21, a specific region, and a specific regions for two samples.
+This file [./test_chr21_SRBreak.ipynb](test_chr21_SRBreak.ipynb) shows results for the test data. The test results include: whole chr21, a specific region, and a specific region for two samples.
