@@ -7,7 +7,7 @@ in next-generation sequencing datasets.
 
 If users only have one sample from their real data, one possible solution is that users can download some samples from the 1000 Genomes project (known SVs) as reference samples. 
 
-(In this example [test_chr21_SRBreak.ipynb](./test_chr21_SRBreak.ipynb), we have also described an example for one sample. However, this option has not been fully tested in our current work).
+(In this example [test_chr21_SRBreak.ipynb](./test_chr21_SRBreak.ipynb)).
 
 
 The package needs chromosome, start and end positions to run. This information should be in the BAM files of users. 
